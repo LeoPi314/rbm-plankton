@@ -10,15 +10,13 @@
 
 | Task | Success criterion |
 |---|---|
-| NaN test set evaluation | Clamp non-missing taxa → reconstruct → score NLL on non-missing positions only (October 2022 structured missingness block) |
+| January–February 2023 anomaly investigation | Taxon-level zoom; decide whether to exclude or retain |
 
 ---
 
 ## Next
 
-| Task | Depends on |
-|---|---|
-| January–February 2023 anomaly investigation | Taxon-level zoom; decide whether to exclude or retain |
+_(nothing queued)_
 
 ---
 
@@ -53,3 +51,4 @@
 | Multi-seed training N=10 | Complete in `results/multiseed_pcd/` for all 3 families × L∈{3,4,5,6,7}. |
 | Implement PCD for NB-RBM | Done (LOG-016). `use_pcd=True, n_pcd_chains=500` in `NBRBM.train()`. |
 | Cross-model comparison NB vs BB-median L=6 | Done. Both models independently recover summer/winter community axes. NB uses compositional representation (~30 patterns/64, consistent across seeds). BB uses exclusive switching. Core structure agreed. |
+| NaN test set evaluation | Done (LOG-018). 160 rows, 3 missingness patterns. NB-RBM test_nll ≤ val_nll across all patterns; more robust than Bernoulli-median. October 2022 NLL decreases over the month. |

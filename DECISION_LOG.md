@@ -218,3 +218,34 @@
 bernoulli_zero is flat across all L (total range 0.0044 ≈ 3σ of L=3): no signal in either direction. L=6 chosen by consistency; the flatness confirms that zero-threshold binarization produces a near-trivial problem (sparse vectors → model predicts near-constant zeros), validating the median threshold decision in LOG-005.
 
 **Consequences:** Canonical models for downstream analysis: NB-RBM L=6 seed_8 (val_nll=0.5437, global minimum), bernoulli_median L=6 best seed. Hidden activation analysis and cross-model community state comparison proceed at L=6.
+
+---
+
+## LOG-018 · NaN test set evaluation — partial-observation imputation
+
+**Context:** 160 rows were excluded from training/validation due to NaN taxa (LOG-002). Three missingness patterns survive the nonzero filter: p3 (3 NaN, 104 rows), p31 (31 NaN, 43 rows, includes October 2022), p54 (54 NaN, 13 rows). These rows allow a post-hoc test of the model's imputation capability under structured missingness.
+
+**Decision:** Evaluate via zero-imputation clamped inference: set NaN taxa to 0, sample P(h | v_partial) × 100, score NLL on observed positions only. Applied to NB-RBM L=6 and bernoulli_median L=6. No model changes were needed.
+
+**Rationale:** Zero imputation (NaN → 0) treats missing taxa as absent — ecologically conservative for a dataset where many taxa have genuine absence periods. It is the minimal intervention: no alternating Gibbs or mean-field approximation. The 100-sample Monte Carlo average reduces variance to a stable estimate without batching overhead on the small model (83×6 weights).
+
+**Results:**
+
+| family | pattern | n_miss | n_obs | n_rows | test_nll_mean | test_nll_std |
+|---|---|---|---|---|---|---|
+| NB-RBM          | p3  |  3 | 80 | 104 | 0.3785 | 0.1351 |
+| NB-RBM          | p31 | 31 | 52 |  43 | 0.5012 | 0.1463 |
+| NB-RBM          | p54 | 54 | 29 |  13 | 0.3344 | 0.2000 |
+| Bernoulli-median | p3  |  3 | 80 | 104 | 0.4316 | 0.0955 |
+| Bernoulli-median | p31 | 31 | 52 |  43 | 0.7374 | 0.1501 |
+| Bernoulli-median | p54 | 54 | 29 |  13 | 0.6408 | 0.3300 |
+
+Reference: NB val_nll = 0.5437; Bernoulli-median val_pll = 0.5332.
+
+Key observations:
+- NB-RBM test NLL ≤ val_nll across all patterns — partial observation does not degrade reconstruction quality. The model's compositional representation (∼30 active 6-bit patterns) constrains the hidden state effectively even from incomplete input.
+- Bernoulli-median: p3 performance is comparable to val_pll (0.43 vs 0.53), but p31 and p54 are substantially worse (0.74, 0.64). The exclusive-switching representation is less robust when a larger fraction of the visible layer is unobserved.
+- October 2022 (p31): NB-RBM NLL starts elevated at month onset (~0.77, consistent with the beginning of the classifier retraining event) and decreases toward month-end (~0.42). This gradient likely reflects progressively more recoverable community states as October transitions toward autumn.
+- p54 high variance (std ≈ 0.20) reflects the small sample (13 rows) and should be interpreted cautiously.
+
+**Consequences:** NaN test evaluation complete. NB-RBM confirmed as more robust to structured missingness than Bernoulli-median. Study complete through this step. January–February 2023 anomaly investigation remains open (ROADMAP Next).
