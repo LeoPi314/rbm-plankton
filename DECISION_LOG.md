@@ -248,4 +248,16 @@ Key observations:
 - October 2022 (p31): NB-RBM NLL starts elevated at month onset (~0.77, consistent with the beginning of the classifier retraining event) and decreases toward month-end (~0.42). This gradient likely reflects progressively more recoverable community states as October transitions toward autumn.
 - p54 high variance (std ≈ 0.20) reflects the small sample (13 rows) and should be interpreted cautiously.
 
-**Consequences:** NaN test evaluation complete. NB-RBM confirmed as more robust to structured missingness than Bernoulli-median. Study complete through this step. January–February 2023 anomaly investigation remains open (ROADMAP Next).
+**Consequences:** NaN test evaluation complete. NB-RBM confirmed as more robust to structured missingness than Bernoulli-median. January–February 2023 anomaly investigation open at this point — closed in LOG-019.
+
+---
+
+## LOG-019 · January–February 2023 anomaly — retained as real ecological event
+
+**Context:** Total abundance is ~7× the dataset mean across December 2022–February 2023, returning abruptly to baseline by March 2023. The question was whether to exclude this window and retrain.
+
+**Decision:** Retain. No exclusion, no code changes.
+
+**Rationale:** Eyring et al. (2025) covers this period in full (dataset spans May 2018–June 2023) and documents no instrument issue for that window. Their stated cleaning philosophy is to remove only clear technical artefacts and instrument-related errors, preserving genuine biological variability. Silence on this event is therefore informative: had it been an instrument problem, it would have been flagged or removed consistent with that philosophy. The NaN patterns that ARE known artefacts in this dataset (LOG-002) are linked to ML classifier retraining events and carry no NaN rows — this window has no NaN rows, making a classifier artefact origin additionally unlikely. The most parsimonious interpretation is a real high-biomass event (likely a winter bloom) that falls outside the scope of the paper's narrative (a data descriptor, not an ecological analysis). Certainty could be obtained from the companion CTD dataset (Merkli et al. 2024, ref 29 in Eyring 2025) — Chl-a and phycocyanin elevation at 3m depth would confirm a bloom — but that is outside the scope of this project.
+
+**Consequences:** Data retained as-is. All trained models already include this window. Study is complete with no remaining open items.

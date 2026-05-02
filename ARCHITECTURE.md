@@ -106,6 +106,8 @@ src/
   hidden_coactivation.py  hidden analysis pipeline — weight profiles + state timelines
   hidden_mean_activation.py  hidden analysis pipeline — mean activation per unit
   hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison
+  nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/ + results/figures/nan_eval/
+  plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from results/training_runs/ → results/figures/training_runs/
   models/
     io.py                 file I/O: training data loaders + results navigation
                             (load_and_binarise, load_raw_counts, best_seed_dir, METRIC_COL)
@@ -122,9 +124,11 @@ results/
     rbm_weights.csv
     rbm_hidden_activations.csv
     train.log
+  nan_eval/            NaN test set scores — per-pattern NLL summary CSV (nan_test_eval.py)
   figures/
-    training_runs/     training curves and weight heatmaps (populated when PLOT_RESULTS=True)
+    training_runs/     training curves and weight heatmaps (plot_training_runs.py)
     dataset_analysis/  EDA figures from dataset_analysis.py
     hidden/            hidden activation analysis outputs
     sweep/             L-sweep analysis figures
+    nan_eval/          NaN evaluation figures (nan_test_eval.py)
 ```

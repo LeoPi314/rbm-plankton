@@ -8,9 +8,7 @@
 
 ## Now
 
-| Task | Success criterion |
-|---|---|
-| January–February 2023 anomaly investigation | Taxon-level zoom; decide whether to exclude or retain |
+_(nothing active)_
 
 ---
 
@@ -35,7 +33,7 @@ _(nothing queued)_
 |---|---|---|
 | Hidden unit type (Bernoulli vs Gaussian) | Gaussian path | Closed as future work — Bernoulli confirmed sufficient |
 | Train/val split fraction (85/15) | Nothing currently | Professor confirmation |
-| January–February 2023: bloom or artifact? | Potential data exclusion | Taxon-level time series inspection |
+| January–February 2023: bloom or artifact? | ~~Potential data exclusion~~ | Closed — retained as real ecological event (LOG-019) |
 
 ---
 
@@ -52,3 +50,4 @@ _(nothing queued)_
 | Implement PCD for NB-RBM | Done (LOG-016). `use_pcd=True, n_pcd_chains=500` in `NBRBM.train()`. |
 | Cross-model comparison NB vs BB-median L=6 | Done. Both models independently recover summer/winter community axes. NB uses compositional representation (~30 patterns/64, consistent across seeds). BB uses exclusive switching. Core structure agreed. |
 | NaN test set evaluation | Done (LOG-018). 160 rows, 3 missingness patterns. NB-RBM test_nll ≤ val_nll across all patterns; more robust than Bernoulli-median. October 2022 NLL decreases over the month. |
+| January–February 2023 anomaly | Closed (LOG-019). Total abundance ~7× mean Dec 2022–Feb 2023. Eyring 2025 covers the period, documents no instrument issue, and states their philosophy is to preserve genuine biological variability. Retained as probable real ecological event; no exclusion. |
