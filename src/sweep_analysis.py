@@ -21,12 +21,14 @@ from models.visualization import (
 )
 
 RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
-FIGURES_DIR = Path(__file__).parent.parent / "results" / "figures" / "sweep"
+SHUFFLED = False  # set True to analyse shuffled-split runs
+SUFFIX = "_shuffled" if SHUFFLED else ""
+FIGURES_DIR = Path(__file__).parent.parent / "results" / "figures" / f"sweep{SUFFIX}"
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, list[Path]]]:
     """Return {family: {L: [csv_paths]}} for all valid result directories."""
-    pattern = re.compile(r"^(.+)_L(\d+)$")
+    pattern = re.compile(rf"^(.+)_L(\d+){re.escape(SUFFIX)}$")
     runs: dict[str, dict[int, list[Path]]] = {}
     for d in sorted(results_dir.iterdir()):
         if not d.is_dir():

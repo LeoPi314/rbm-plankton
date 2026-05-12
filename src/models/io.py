@@ -23,7 +23,7 @@ VAL_FRAC  = 0.15
 
 # -- Training data -------------------------------------------------------------
 
-def _base_load(path, val_frac, device):
+def _base_load(path, val_frac, device, shuffle=False):
     """Shared steps: parse, sort, drop zero rows, separate NaN rows, split."""
     df = pd.read_csv(path, parse_dates=["date"])
     df = df.sort_values("date").reset_index(drop=True)
@@ -38,6 +38,10 @@ def _base_load(path, val_frac, device):
 
     print(f"[Data]  clean rows: {len(df)}  |  NaN test rows: {len(nan_rows)}")
 
+    if shuffle:
+        df = df.sample(frac=1).reset_index(drop=True)
+        print("[Split] shuffled before split")
+
     n_val   = int(len(df) * val_frac)
     n_train = len(df) - n_val
     dates_train = df["date"].iloc[:n_train]
@@ -49,13 +53,14 @@ def _base_load(path, val_frac, device):
 
 
 def load_and_binarise(path=DATA_PATH, binarize="median",
-                      val_frac=VAL_FRAC, device=torch.device("cpu")):
+                      val_frac=VAL_FRAC, device=torch.device("cpu"),
+                      shuffle=False):
     """
     Preprocessing for Bernoulli-Bernoulli RBM.
     Returns binary tensors in {0, 1}.
     """
     df, taxa_cols, dates_train, dates_val, nan_rows, n_train = \
-        _base_load(path, val_frac, device)
+        _base_load(path, val_frac, device, shuffle=shuffle)
 
     X = df[taxa_cols].values.astype(np.float32)
 
@@ -79,13 +84,14 @@ def load_and_binarise(path=DATA_PATH, binarize="median",
 
 
 def load_raw_counts(path=DATA_PATH, scale=1000,
-                    val_frac=VAL_FRAC, device=torch.device("cpu")):
+                    val_frac=VAL_FRAC, device=torch.device("cpu"),
+                    shuffle=False):
     """
     Preprocessing for NB-Bernoulli RBM.
     Returns raw count concentrations (organisms/μL), optionally scaled.
     """
     df, taxa_cols, dates_train, dates_val, nan_rows, n_train = \
-        _base_load(path, val_frac, device)
+        _base_load(path, val_frac, device, shuffle=shuffle)
 
     X = df[taxa_cols].values.astype(np.float32) * scale
 

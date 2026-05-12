@@ -10,6 +10,7 @@ import torch
 
 def get_device():
     """Return CUDA device if available, else CPU."""
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     name = torch.cuda.get_device_name(device) if device.type == "cuda" else "CPU"
     print(f"[Device]  {name}")

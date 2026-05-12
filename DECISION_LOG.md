@@ -61,7 +61,7 @@
 
 **Decision:** Threshold = per-taxon median.
 
-**Rationale:** Zero threshold produces constant units for rare taxa: a taxon absent 90% of the time is almost always 0 after binarisation, giving the corresponding visible unit no gradient signal. Median threshold ensures each taxon is active approximately 50% of the time by construction, maximising information content per unit.
+**Rationale:** For rare taxa (present <50% of the time), median=0 and both thresholds encode identically (v > 0) — dead units either way. For common taxa, zero threshold gives near-constant-on units (present most days, no gradient). The median transforms them into above/below-median abundance (~50/50 split, full gradient). These common taxa carry the signal.
 
 **Consequences:** Binarisation is taxon-specific. The biological interpretation shifts from presence/absence to above/below-median abundance.
 

@@ -166,9 +166,9 @@ def plot_hidden_activations(rbm, X_train, X_val, dates_train, dates_val, out_dir
 # =============================================================================
 
 FAMILY_META = {
-    "bernoulli_median": dict(col="val_pll", label="PLL (↑)", better="higher"),
-    "bernoulli_zero":   dict(col="val_pll", label="PLL (↑)", better="higher"),
-    "nb":               dict(col="val_nll", label="NLL (↓)", better="lower"),
+    "bernoulli_median": dict(col="val_pll", label="Val PLL", better="higher"),
+    "bernoulli_zero":   dict(col="val_pll", label="Val PLL", better="higher"),
+    "nb":               dict(col="val_nll", label="Val NLL", better="lower"),
 }
 
 COLORS = {

@@ -40,6 +40,7 @@ GAMMA          = 1e-4
 BETA           = 0.9
 EPSILON        = 1e-4
 VAL_FRAC       = 0.15
+SHUFFLE_SPLIT  = False  # True = random split, False = chronological
 COUNT_SCALE    = 1000
 THETA_INIT_LOG = 0.0
 
@@ -76,17 +77,20 @@ def train_one(job: tuple) -> str:
 
             device = get_device()
 
+            shuffle_kw = dict(shuffle=SHUFFLE_SPLIT)
             if family.startswith("bernoulli"):
                 threshold = "median" if "median" in family else "zero"
                 X_train, X_val, dates_train, dates_val, taxa_cols, _, thresholds = \
                     load_and_binarise(str(DATA_PATH), binarize=threshold,
-                                      val_frac=VAL_FRAC, device=device)
+                                      val_frac=VAL_FRAC, device=device,
+                                      **shuffle_kw)
                 rbm = BernoulliRBM(n_visible=len(taxa_cols), n_hidden=l_val,
                                    device=device)
             else:
                 X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
                     load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
-                                    val_frac=VAL_FRAC, device=device)
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
                 rbm = NBRBM(n_visible=len(taxa_cols), n_hidden=l_val,
                             device=device, theta_init_log=THETA_INIT_LOG)
                 thresholds = None
@@ -132,11 +136,12 @@ def train_one(job: tuple) -> str:
 # -- Main ----------------------------------------------------------------------
 
 def build_jobs() -> list[tuple]:
+    shuffle_tag = "_shuffled" if SHUFFLE_SPLIT else ""
     jobs = []
     for family, l_list in L_VALUES.items():
         for l_val in l_list:
             for seed in range(N_SEEDS):
-                out_dir = OUT_ROOT / f"{family}_L{l_val}" / f"seed_{seed}"
+                out_dir = OUT_ROOT / f"{family}_L{l_val}{shuffle_tag}" / f"seed_{seed}"
                 # Skip if already completed
                 if (out_dir / "rbm_training_curves.csv").exists():
                     continue
