@@ -24,6 +24,7 @@ MAX_WORKERS = 10
 
 L_VALUES = {
     "nb":               [3, 4, 5, 6, 7],
+    "zinb":             [3, 4, 5, 6, 7],
     "bernoulli_median": [3, 4, 5, 6, 7],
     "bernoulli_zero":   [3, 4, 5, 6, 7],
 }
@@ -71,7 +72,7 @@ def train_one(job: tuple) -> str:
             np.random.seed(seed)
 
             from models.io import load_and_binarise, load_raw_counts
-            from models import BernoulliRBM, NBRBM
+            from models import BernoulliRBM, NB_RBM, ZINB_RBM
             from models.visualization import export_results_csv
             from models.utils import get_device, save_weights
 
@@ -91,12 +92,20 @@ def train_one(job: tuple) -> str:
                     load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
                                     val_frac=VAL_FRAC, device=device,
                                     **shuffle_kw)
-                rbm = NBRBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                rbm = NB_RBM(n_visible=len(taxa_cols), n_hidden=l_val,
                             device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
+            elif family == "zinb":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = ZINB_RBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                               device=device, theta_init_log=THETA_INIT_LOG)
                 thresholds = None
 
             pcd_kwargs = ({"use_pcd": USE_PCD, "n_pcd_chains": N_PCD_CHAINS}
-                          if family == "nb" else {})
+                          if family in ("nb", "zinb") else {})
             history = rbm.train(
                 X_train, X_val,
                 epochs=EPOCHS, lr=LR, lr_decay=LR_DECAY,
@@ -113,6 +122,9 @@ def train_one(job: tuple) -> str:
                              visible_model=family)
             if family == "nb":
                 save_dict["log_theta"] = params[3]
+            if family == "zinb":
+                save_dict["log_theta"] = params[3]
+                save_dict["logit_pi"] = params[4]
             if thresholds is not None:
                 save_dict["thresholds"] = thresholds
             save_weights(out_dir, save_dict)

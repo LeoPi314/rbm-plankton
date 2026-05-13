@@ -47,7 +47,7 @@ _(nothing queued)_
 | NB-RBM slow mixing / divergence at L≥5 | Fixed by PCD-1 (LOG-016). 10/10 convergence across all L after PCD. |
 | n_hidden final value | L=6 for all families (LOG-017). Substantial cumulative gain L=3→6; no gain L=6→7. |
 | Multi-seed training N=10 | Complete in `results/multiseed_pcd/` for all 3 families × L∈{3,4,5,6,7}. |
-| Implement PCD for NB-RBM | Done (LOG-016). `use_pcd=True, n_pcd_chains=500` in `NBRBM.train()`. |
+| Implement PCD for NB-RBM | Done (LOG-016). `use_pcd=True, n_pcd_chains=500` in `NB_RBM.train()`. |
 | Cross-model comparison NB vs BB-median L=6 | Done. Both models independently recover summer/winter community axes. NB uses compositional representation (~30 patterns/64, consistent across seeds). BB uses exclusive switching. Core structure agreed. |
 | NaN test set evaluation | Done (LOG-018). 160 rows, 3 missingness patterns. NB-RBM test_nll ≤ val_nll across all patterns; more robust than Bernoulli-median. October 2022 NLL decreases over the month. |
 | January–February 2023 anomaly | Closed (LOG-019). Total abundance ~7× mean Dec 2022–Feb 2023. Eyring 2025 covers the period, documents no instrument issue, and states their philosophy is to preserve genuine biological variability. Retained as probable real ecological event; no exclusion. |

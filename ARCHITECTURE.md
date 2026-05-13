@@ -115,7 +115,7 @@ src/
     visualization.py      all plotting functions, organised by calling pipeline
     base_rbm.py           shared RBM interface and initialisation
     bernoulli_rbm.py      BernoulliRBM: train (CD-1), pll, hidden_probs, reconstruct
-    nb_rbm.py             NBRBM: train (PCD-1), nll, hidden_probs, reconstruct, θ update
+    nb_rbm.py             NB_RBM: train (PCD-1), nll, hidden_probs, reconstruct, θ update
 
 results/
   training_runs/{family}_L{n}/seed_{k}/   training artifacts (canonical: multiseed PCD runs)

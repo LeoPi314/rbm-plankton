@@ -31,7 +31,7 @@ import torch.nn.functional as F
 sys.path.insert(0, str(Path(__file__).parent))
 from models.io import best_seed_dir, METRIC_COL, DATA_PATH
 from models.utils import load_weights, get_device
-from models.nb_rbm import NBRBM
+from models.nb_rbm import NB_RBM
 from models.bernoulli_rbm import BernoulliRBM
 
 RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
@@ -65,13 +65,13 @@ def run_dir(family: str, L: int, split: str) -> Path:
 
 # -- Model loading -------------------------------------------------------------
 
-def load_nb(seed_dir: Path, device) -> NBRBM:
+def load_nb(seed_dir: Path, device) -> NB_RBM:
     npz = load_weights(seed_dir / "weights.npz")
     W  = torch.tensor(npz["W"],          dtype=torch.float32, device=device)
     a  = torch.tensor(npz["a"],          dtype=torch.float32, device=device)
     b  = torch.tensor(npz["b"],          dtype=torch.float32, device=device)
     lt = torch.tensor(npz["log_theta"],  dtype=torch.float32, device=device)
-    rbm = NBRBM(W.shape[0], W.shape[1], device=device)
+    rbm = NB_RBM(W.shape[0], W.shape[1], device=device)
     rbm.W, rbm.a, rbm.b, rbm.log_theta = W, a, b, lt
     return rbm
 
@@ -114,7 +114,7 @@ def nan_rows_bernoulli(thresholds: np.ndarray) -> tuple[pd.DataFrame, list]:
 # -- Scoring -------------------------------------------------------------------
 
 @torch.no_grad()
-def score_nb_row(rbm: NBRBM, v_raw: np.ndarray, device) -> float:
+def score_nb_row(rbm: NB_RBM, v_raw: np.ndarray, device) -> float:
     obs = ~np.isnan(v_raw)
     if obs.sum() == 0:
         return float("nan")

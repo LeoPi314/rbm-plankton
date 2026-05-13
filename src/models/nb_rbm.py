@@ -9,9 +9,10 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
+from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor
 
 
-class NBRBM(BaseRBM):
+class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
     """
     NB-Bernoulli RBM trained by CD-k with RMSprop.
 
@@ -164,8 +165,8 @@ class NBRBM(BaseRBM):
         s_theta = torch.zeros_like(self.log_theta.data)
 
         history = {"train_mse": [], "val_mse": [], "train_nll": [],
-                   "val_nll": [], "theta_mean": [],
-                   "sat_lo": [], "sat_hi": [], "sat_mid": [], "epoch": []}
+                   "val_nll": [], "theta_mean": [], "epoch": []}
+        history.update(self._hidden_stats_init())
 
         # PCD: initialise persistent particle buffer from training data
         if use_pcd:
@@ -251,11 +252,7 @@ class NBRBM(BaseRBM):
                 val_nll     = self.nll(X_val) if X_val is not None else None
                 theta_mean  = self.log_theta.detach().exp().mean().item()
 
-                with torch.no_grad():
-                    ph = self._ph_given_v(X_train)
-                sat_lo  = (ph < 0.1).float().mean().item()
-                sat_hi  = (ph > 0.9).float().mean().item()
-                sat_mid = 1.0 - sat_lo - sat_hi
+                hid_stats = self._compute_hidden_stats(X_train)
 
                 history["epoch"].append(epoch)
                 history["train_mse"].append(train_mse)
@@ -263,15 +260,14 @@ class NBRBM(BaseRBM):
                 history["train_nll"].append(train_nll)
                 history["val_nll"].append(val_nll)
                 history["theta_mean"].append(theta_mean)
-                history["sat_lo"].append(sat_lo)
-                history["sat_hi"].append(sat_hi)
-                history["sat_mid"].append(sat_mid)
+                for k, v in hid_stats.items():
+                    history[k].append(v)
 
                 if verbose:
                     stats = {"nll": f"{train_nll:.2f}",
                              "theta_mean": f"{theta_mean:.3f}",
-                             "sat_mid": f"{sat_mid:.0%}",
                              "batch": batch_size}
+                    stats.update(self._hidden_stats_display(hid_stats))
                     if val_nll is not None:
                         stats["val_nll"] = f"{val_nll:.2f}"
                     pbar.set_postfix(stats)
@@ -283,3 +279,29 @@ class NBRBM(BaseRBM):
                 self.a.cpu().float().numpy(),
                 self.b.cpu().float().numpy(),
                 self.log_theta.detach().cpu().float().numpy())
+
+
+class NB_ReLU_RBM(ReLUHiddenMonitor, NB_RBM):
+    """
+    NB-ReLU RBM: NB visible units with Rectified Gaussian hidden units.
+
+    Hidden units (replaces Bernoulli):
+      mean_j = ReLU(b_j + sum_i W_ij * v_i)
+      h_j ~ ReLU(mean_j + N(0,1))   (rectified Gaussian)
+
+    All visible-side logic (NB likelihood, theta update, PCD buffer)
+    is inherited unchanged from NB_RBM.
+    """
+
+    def _ph_given_v(self, V):
+        return F.relu(V @ self.W + self.b)
+
+    def _sample_hidden(self, mean):
+        return F.relu(mean + torch.randn_like(mean))
+
+    def _sample_bernoulli(self, prob):
+        """Overridden: rectified Gaussian sampling in place of Bernoulli."""
+        return self._sample_hidden(prob)
+
+    def hidden_probs(self, V):
+        return self._ph_given_v(V)
