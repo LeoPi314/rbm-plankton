@@ -40,7 +40,9 @@ NaN rows are retained separately as a structured post-training test set.
 
 ## Models
 
-Both models use Bernoulli hidden units. Selected by `VISIBLE_MODEL` in `config.py`.
+Model families are selected by the `family` string in `L_VALUES` (see `main_multiseed.py`).  
+All models share the `BaseRBM` initialisation (`W`, `a`, `b`, scale_init).  
+Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 
 ### BB-RBM — Bernoulli-Bernoulli
 
@@ -52,29 +54,78 @@ Both models use Bernoulli hidden units. Selected by `VISIBLE_MODEL` in `config.p
 | L1 scope    | W, a, b                                                  |
 | Monitor     | Reconstruction MSE · PLL (pseudo-log-likelihood)         |
 
-### NBB-RBM — Negative-Binomial–Bernoulli
+### NB-RBM — Negative-Binomial with Bernoulli hidden
 
 | Component        | Specification                                                  |
 | ---------------- | -------------------------------------------------------------- |
 | Visible          | NB: μ_i = exp(a_i + Σ_j W_ij h_j)                             |
 | Dispersion       | θ_i = exp(log_θ_i), one per taxon, learned via autograd on positive-phase NLL |
-| Hidden           | Bernoulli (same as BB-RBM)                                     |
+| Hidden           | Bernoulli: P(h_j=1\|v) = σ(b_j + Σ_i W_ij v_i)                |
 | L1 scope         | W only (a is log-mean baseline, not a logit parameter)         |
-| Monitor          | Reconstruction MSE · NLL · θ_mean · hidden unit saturation     |
+| Monitor          | Reconstruction MSE · NLL · θ_mean · sat_lo/sat_hi/sat_mid     |
 | η clamp          | max=10.0 before exp (float32 overflow guard)                   |
 | log_θ clamp      | [−10, 10] after each update                                    |
 | θ gradient guard | nan_to_num(nan=0.0) before RMSprop step                        |
 | Negative phase   | PCD-1: 500 persistent fantasy particles, initialised from X_train, advanced 1 Gibbs step per batch and stored back |
 
+### NB-ReLU-RBM — NB visible, ReLU hidden (abandoned)
+
+| Component    | Specification                                                     |
+| ------------ | ----------------------------------------------------------------- |
+| Hidden       | ReLU: pre_j = b_j + Σ_i W_ij v_i; h_j = clamp(relu(pre_j), 0, 5) |
+| Sampling     | h_j ~ clamp(relu(pre_j + N(0,1)), 0, 5)                           |
+| Monitor      | h_mean · h_sparsity (fraction of dead units)                      |
+| Notes        | [0,5] clamp required for count-scale data; 6/10 seeds still diverge at L≥6. **Not recommended.** See LOG-020. |
+
+### NB-Sigmoid-RBM — NB visible, Sigmoid hidden (recommended)
+
+| Component    | Specification                                                     |
+| ------------ | ----------------------------------------------------------------- |
+| Hidden       | Sigmoid: P(h_j=1\|v) = σ(b_j + Σ_i W_ij v_i), h ∈ (0,1)          |
+| Sampling     | h_j ~ Bernoulli(σ(pre_j))                                         |
+| Monitor      | h_mean (target 0.2–0.8)                                           |
+| Notes        | Bounded → PCD-safe. Lowest NLL of any tested family (0.443 ± 0.019 at L=7). **Recommended NB hidden type.** See LOG-021. |
+
+### NB-Softmax-RBM — NB visible, Softmax hidden (abandoned)
+
+| Component    | Specification                                                     |
+| ------------ | ----------------------------------------------------------------- |
+| Hidden       | Softmax: p_j = softmax_j(b + V@W), Σ_j p_j = 1                   |
+| Sampling     | h ~ one-hot(multinomial(p))                                       |
+| Monitor      | h_entropy (max log₂L for uniform)                                 |
+| Notes        | Collapses to near-deterministic assignments (H≈0.05). Distributed signals discarded. **Not recommended.** See LOG-022. |
+
+### ZINB-RBM — Zero-Inflated NB visible, Bernoulli hidden
+
+| Component        | Specification                                                  |
+| ---------------- | -------------------------------------------------------------- |
+| Visible          | ZINB: P(v) = π·δ₀(v) + (1−π)·NB(v; μ, θ)                     |
+| Dispersion       | θ_i = exp(log_θ_i), one per taxon                             |
+| Inflation        | π_i = σ(logit_pi_i), one per taxon                            |
+| Hidden           | Bernoulli (same as NB-RBM)                                     |
+| Reconstruct      | E[v|h] = (1−π)·μ = (1−π)·exp(a + Wh)                          |
+| Monitor          | Reconstruction MSE · NLL · θ_mean · π_mean · sat_lo/sat_hi/sat_mid |
+| log_θ clamp      | [−10, 10] after each update                                    |
+| logit_pi clamp   | [−5, 5] after each update                                      |
+| Negative phase   | PCD-1 (same as NB-RBM)                                         |
+
+### ZINB-ReLU-RBM — ZINB visible, ReLU hidden
+
+| Component    | Specification                                                     |
+| ------------ | ----------------------------------------------------------------- |
+| Hidden       | ReLU with [0,5] clamp (same as NB-ReLU-RBM)                       |
+| Notes        | Stable at L=4–5 only; variance increases at L≥6.                  |
+
 ### Shared training mechanics
 
 | Parameter    | Value / formula                                              |
 | ------------ | ------------------------------------------------------------ |
-| Algorithm    | BB-RBM: CD-1 · NBB-RBM: PCD-1 (500 persistent particles)    |
+| Algorithm    | BB-RBM: CD-1 · NB/ZINB family: PCD-1 (500 persistent particles) |
 | Optimiser    | RMSprop, β=0.9, ε=1e-4                                       |
 | Batch size   | Annealed BATCH_I→BATCH_F quadratically over epochs           |
 | LR schedule  | Multiplicative decay per epoch (LR × LR_DECAY)              |
 | θ LR (NB)   | lr × 0.1, separate RMSprop accumulator                       |
+| π LR (ZINB) | lr × 0.1, separate RMSprop accumulator                       |
 | a init (BB)  | log(mean(v) / (1 − mean(v)))                                 |
 | a init (NB)  | log(mean(v))                                                 |
 | W init       | N(0, √(4/(D+L)))                                             |
@@ -83,12 +134,19 @@ Both models use Bernoulli hidden units. Selected by `VISIBLE_MODEL` in `config.p
 
 ## Training monitoring
 
-| Model | Progress bar              | CSV columns                                               |
-| ----- | ------------------------- | --------------------------------------------------------- |
-| BB    | pll, val_pll              | epoch, train_mse, val_mse, train_pll, val_pll             |
-| NB    | nll, val_nll, θ_mean, sat_mid | epoch, train_mse, val_mse, train_nll, val_nll, theta_mean, sat_lo, sat_hi, sat_mid |
+| Model | Progress bar | CSV columns |
+| ----- | ------------ | ----------- |
+| BB | pll, val_pll | epoch, train_mse, val_mse, train_pll, val_pll |
+| NB (Bernoulli hidden) | nll, val_nll, θ_mean, sat_mid | epoch, train_mse, val_mse, train_nll, val_nll, theta_mean, sat_lo, sat_hi, sat_mid |
+| NB (Sigmoid hidden) | nll, val_nll, θ_mean, h_mean | epoch, train_mse, val_mse, train_nll, val_nll, theta_mean, h_mean |
+| NB (Softmax hidden) | nll, val_nll, θ_mean, H | epoch, train_mse, val_mse, train_nll, val_nll, theta_mean, h_entropy |
+| ZINB | nll, val_nll, θ_mean, π_mean, sat_mid | epoch, train_mse, val_mse, train_nll, val_nll, theta_mean, pi_mean, sat_lo, sat_hi, sat_mid |
 
-**Hidden unit saturation** (NB): sat_lo = fraction of P(h=1|v) < 0.1; sat_hi = fraction > 0.9; sat_mid = remainder. Target: sat_mid < 15% at convergence. A unit with sat_hi > 90% across all timesteps is a bias absorber (wasted capacity).
+**Hidden unit metrics** (set by `_hidden_monitors.py` mixins):
+- `BernoulliHiddenMonitor`: sat_lo/ sat_hi/ sat_mid — fraction of P(h=1|v) < 0.1, > 0.9, rest
+- `ReLUHiddenMonitor`: h_mean, h_sparsity — mean activation, fraction of dead (pre_act < 0) units
+- `SigmoidHiddenMonitor`: h_mean — mean activation (target 0.2–0.8)
+- `SoftmaxHiddenMonitor`: h_entropy — entropy of the categorical distribution
 
 **PLL**: negative pseudo-log-likelihood = −mean_{n,i} log p(v_i | v_{-i}). Computed exactly via free-energy difference. Lower is better.
 
@@ -108,14 +166,17 @@ src/
   hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison
   nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/ + results/figures/nan_eval/
   plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from results/training_runs/ → results/figures/training_runs/
-  models/
-    io.py                 file I/O: training data loaders + results navigation
+    models/
+      __init__.py           exports: BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM
+      io.py                 file I/O: training data loaders + results navigation
                             (load_and_binarise, load_raw_counts, best_seed_dir, METRIC_COL)
-    utils.py              shared utilities: get_device, save_weights, load_weights
-    visualization.py      all plotting functions, organised by calling pipeline
-    base_rbm.py           shared RBM interface and initialisation
-    bernoulli_rbm.py      BernoulliRBM: train (CD-1), pll, hidden_probs, reconstruct
-    nb_rbm.py             NB_RBM: train (PCD-1), nll, hidden_probs, reconstruct, θ update
+      utils.py              shared utilities: get_device, save_weights, load_weights
+      visualization.py      all plotting functions, organised by calling pipeline
+      base_rbm.py           shared RBM interface and initialisation
+      bernoulli_rbm.py      BernoulliRBM: train (CD-1), pll, hidden_probs, reconstruct
+      nb_rbm.py             NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM: train (PCD-1), nll, hidden_probs, reconstruct, θ update
+      zinb_rbm.py           ZINB_RBM, ZINB_ReLU_RBM: train (PCD-1), nll, hidden_probs, reconstruct, θ + π update
+      _hidden_monitors.py   mixins: BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
 
 results/
   training_runs/{family}_L{n}/seed_{k}/   training artifacts (canonical: multiseed PCD runs)

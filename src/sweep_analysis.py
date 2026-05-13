@@ -17,7 +17,7 @@ import pandas as pd
 sys.path.insert(0, str(Path(__file__).parent))
 from models.visualization import (
     FAMILY_META, aggregate_curves,
-    plot_final_metric, plot_sweep_curves, plot_nb_diagnostics,
+    plot_final_metric, plot_sweep_curves, plot_nb_diagnostics, plot_zinb_diagnostics,
 )
 
 RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
@@ -88,6 +88,7 @@ def main():
     plot_final_metric(runs, FIGURES_DIR)
     plot_sweep_curves(runs, FIGURES_DIR)
     plot_nb_diagnostics(runs, FIGURES_DIR)
+    plot_zinb_diagnostics(runs, FIGURES_DIR)
 
 
 if __name__ == "__main__":

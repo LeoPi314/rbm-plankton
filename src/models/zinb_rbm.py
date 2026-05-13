@@ -352,10 +352,10 @@ class ZINB_ReLU_RBM(ReLUHiddenMonitor, ZINB_RBM):
     """
 
     def _ph_given_v(self, V):
-        return F.relu(V @ self.W + self.b)
+        return F.relu(V @ self.W + self.b).clamp(max=5.0)
 
     def _sample_hidden(self, mean):
-        return F.relu(mean + torch.randn_like(mean))
+        return F.relu(mean + torch.randn_like(mean)).clamp(max=5.0)
 
     def _sample_bernoulli(self, prob):
         """Overridden: rectified Gaussian sampling in place of Bernoulli."""

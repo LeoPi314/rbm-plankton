@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
-from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor
+from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
 
 
 class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
@@ -285,23 +285,90 @@ class NB_ReLU_RBM(ReLUHiddenMonitor, NB_RBM):
     """
     NB-ReLU RBM: NB visible units with Rectified Gaussian hidden units.
 
-    Hidden units (replaces Bernoulli):
-      mean_j = ReLU(b_j + sum_i W_ij * v_i)
-      h_j ~ ReLU(mean_j + N(0,1))   (rectified Gaussian)
+    Hidden units:
+      pre_j = b_j + sum_i W_ij * v_i          (raw pre-activation, can be < 0)
+      h_j   ~ clamp(max(0, pre_j + N(0,1)), 0, 5)
 
-    All visible-side logic (NB likelihood, theta update, PCD buffer)
-    is inherited unchanged from NB_RBM.
+    Sampling note: _ph_given_v returns the raw pre-activation (not relu'd) so
+    that _sample_hidden adds noise before applying relu — the correct truncated
+    Gaussian form. The upper clamp [0, 5] is required because count-scale visible
+    units (V up to 444) push pre-activations into the hundreds, overwhelming the
+    h^2/2 restoring force from the Gaussian-ReLU energy (which assumes normalised
+    inputs). The clamp enforces the energy ceiling externally.
     """
 
     def _ph_given_v(self, V):
-        return F.relu(V @ self.W + self.b)
+        """Raw pre-activation b + V@W — not relu'd. Sampling needs the signed value."""
+        return V @ self.W + self.b
 
-    def _sample_hidden(self, mean):
-        return F.relu(mean + torch.randn_like(mean))
+    def _sample_hidden(self, pre_act):
+        return F.relu(pre_act + torch.randn_like(pre_act)).clamp(max=5.0)
 
     def _sample_bernoulli(self, prob):
         """Overridden: rectified Gaussian sampling in place of Bernoulli."""
         return self._sample_hidden(prob)
 
     def hidden_probs(self, V):
-        return self._ph_given_v(V)
+        """Approximate E[h|v] = clamp(relu(pre_activation), 0, 5)."""
+        return F.relu(self._ph_given_v(V)).clamp(max=5.0)
+
+    def _compute_hidden_stats(self, X_train):
+        with torch.no_grad():
+            pre_act = self._ph_given_v(X_train)
+        return {"h_mean":     F.relu(pre_act).clamp(max=5.0).mean().item(),
+                "h_sparsity": (pre_act < 0).float().mean().item()}
+
+
+class NBSigmoidRBM(SigmoidHiddenMonitor, NB_RBM):
+    """
+    NB-Sigmoid RBM: NB visible units with sigmoid hidden units.
+
+    Hidden units:
+      mean_j = sigmoid(b_j + sum_i W_ij * v_i)      h_j ∈ (0,1)
+      h_j   ~ Bernoulli(mean_j)                       sampled binary
+
+    Sigmoid is bounded → no dead-unit problem → PCD safe.
+    """
+
+    def _ph_given_v(self, V):
+        return torch.sigmoid(V @ self.W + self.b)
+
+    def _sample_hidden(self, mean):
+        return torch.bernoulli(mean)
+
+    def _sample_bernoulli(self, prob):
+        return self._sample_hidden(prob)
+
+    @torch.no_grad()
+    def reconstruct(self, V):
+        H = self._ph_given_v(V)
+        return self._mu(H)
+
+
+class NBSoftmaxRBM(SoftmaxHiddenMonitor, NB_RBM):
+    """
+    NB-Softmax RBM: NB visible units with softmax hidden units.
+
+    Hidden units:
+      p_j      = softmax_j(b + V @ W)                Σ_j p_j = 1
+      h       ~ one-hot(multinomial(p))               exactly one unit active
+
+    Softmax is bounded → PCD safe. The competition between units
+    implements a mixture model: each sample is assigned to one
+    archetypal community state.
+    """
+
+    def _ph_given_v(self, V):
+        return torch.softmax(V @ self.W + self.b, dim=1)
+
+    def _sample_hidden(self, mean):
+        idx = torch.multinomial(mean, 1).squeeze(1)
+        return F.one_hot(idx, num_classes=self.L).float()
+
+    def _sample_bernoulli(self, prob):
+        return self._sample_hidden(prob)
+
+    @torch.no_grad()
+    def reconstruct(self, V):
+        H = self._ph_given_v(V)
+        return self._mu(H)

@@ -107,6 +107,11 @@ def load_raw_counts(path=DATA_PATH, scale=1000,
 
 METRIC_COL = {
     "nb":               "val_nll",
+    "nb_relu":          "val_nll",
+    "nb_sigmoid":       "val_nll",
+    "nb_softmax":       "val_nll",
+    "zinb":             "val_nll",
+    "zinb_relu":        "val_nll",
     "bernoulli_median": "val_pll",
     "bernoulli_zero":   "val_pll",
 }

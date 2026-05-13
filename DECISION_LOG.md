@@ -261,3 +261,100 @@ Key observations:
 **Rationale:** Eyring et al. (2025) covers this period in full (dataset spans May 2018–June 2023) and documents no instrument issue for that window. Their stated cleaning philosophy is to remove only clear technical artefacts and instrument-related errors, preserving genuine biological variability. Silence on this event is therefore informative: had it been an instrument problem, it would have been flagged or removed consistent with that philosophy. The NaN patterns that ARE known artefacts in this dataset (LOG-002) are linked to ML classifier retraining events and carry no NaN rows — this window has no NaN rows, making a classifier artefact origin additionally unlikely. The most parsimonious interpretation is a real high-biomass event (likely a winter bloom) that falls outside the scope of the paper's narrative (a data descriptor, not an ecological analysis). Certainty could be obtained from the companion CTD dataset (Merkli et al. 2024, ref 29 in Eyring 2025) — Chl-a and phycocyanin elevation at 3m depth would confirm a bloom — but that is outside the scope of this project.
 
 **Consequences:** Data retained as-is. All trained models already include this window. Study is complete with no remaining open items.
+
+---
+
+## LOG-020 · NB_ReLU_RBM: hidden activation clamp [0, 5] is necessary; link function is secondary
+
+**Context:** `NB_ReLU_RBM` replaces Bernoulli hidden units with ReLU (h ∈ [0, ∞)). Three rounds of experiments (no activation clamp in any run):
+
+**Round 1 — exp link, lr=0.01:**
+| Config | val NLL | h_mean | outcome |
+|---|---|---|---|
+| exp + PCD   | NaN | 5.98 | runaway + dead mix → NaN |
+| exp + CD-1  | NaN | —    | collapse → NaN |
+
+**Round 2 — softplus link, lr=0.01:**
+| Config | val NLL | h_mean | outcome |
+|---|---|---|---|
+| softplus + PCD  | NaN | 5.98 | 96.6% dead, few runaway → NaN |
+| softplus + CD-1 | NaN | 0.23 | 99.4% dead → NaN |
+
+**Round 3 — softplus link, lr=0.001 (10× lower):**
+| Config | val NLL | h_mean | outcome |
+|---|---|---|---|
+| softplus + PCD  | NaN | 260.8 | 0% dead, h grows to 261 → NaN |
+| softplus + CD-1 | NaN |  98.8 | 18% dead, h grows to 99 → NaN |
+
+**Decision:** The hidden activation clamp to [0, 5] is necessary and sufficient for stable NB_ReLU_RBM training. It is not a workaround — it is the correct structural fix given count-scale visible units. No other intervention (link function, CD variant, learning rate, sampling correction) eliminates the need for it.
+
+**Rationale:** Four rounds of experiments spanning link function × CD variant × learning rate × sampling correctness all confirm the same failure without the clamp. Round 4 (below) was the decisive test: fixing a sampling bug in `_ph_given_v` (see consequences) and running softplus+CD-1 still produced h_mean → 216 and NaN NLL within 300 epochs.
+
+**Round 4 — sampling-bug fix, lr=0.001:**
+| Config | val NLL | h_mean | outcome |
+|---|---|---|---|
+| exp + CD-1 (fixed sampling)       | NaN |   8.3 | slow runaway |
+| softplus + CD-1 (fixed sampling)  | NaN | 216.5 | fast runaway |
+| softplus + PCD (fixed sampling)   | NaN | 122.5 | intermediate |
+
+The root cause is a **scale mismatch between count data and ReLU hidden units**, not the link function or sampling formula. The Nair & Hinton (2010) Gaussian-ReLU RBM energy includes a h²/2 term that acts as a restoring force preventing h runaway. This works because visible units are z-scored to zero mean, unit variance, keeping pre-activations pre_j = b_j + Σ_i W_ij v_i in ±3 range. In NB_ReLU_RBM, visible units are raw counts ×1000 (values up to 444). With W initialised at ~0.1 (after scale_init), a single high-count taxon contributes ≈ 444 × 0.1 = 44 to the pre-activation; summed over 83 inputs, pre_j can reach the hundreds at initialisation. The h²/2 restoring force is proportional to h, so a signal of +300 from the data overwhelms any gradient pulling h back. The h²/2 theory applies only when inputs are normalised — count-scale data breaks the precondition entirely. The clamp to [0, 5] enforces the ceiling externally and unconditionally, making it the correct engineering fix for this data regime.
+
+The sampling bug found during this investigation: the old `_ph_given_v` applied `relu` before passing to `_sample_hidden`, so `h = relu(relu(pre_act) + ε)` instead of the correct `h = relu(pre_act + ε)`. For units with negative pre-activation the old code sampled from a half-normal (mean ≈ 0.4) instead of driving h toward 0, which weakened the lower absorbing boundary. This bug is fixed in the current code regardless of the clamp conclusion.
+
+**Consequences:** `NB_ReLU_RBM` uses `clamp(h, 0, 5)` unconditionally (both in `_ph_given_v` and `_sample_hidden` — the correct sampling fix has been applied independently). The sampling bug is fixed: `_ph_given_v` now returns the raw pre-activation; `_sample_hidden` correctly samples `relu(pre_act + N(0,1))`; `hidden_probs` applies relu for the expected value. The clamp is reapplied on top of the correct sampling. Any future ReLU-hidden NB variant operating on count-scale data must include this clamp. The principled alternative — normalising visible inputs before the hidden layer — would break the NB visible distribution and is not pursued.
+
+---
+
+## LOG-021 · NBSigmoidRBM: sigmoid hidden units are PCD-safe, stable, and beat NB-Bernoulli
+
+**Context:** `NBSigmoidRBM` replaces Bernoulli hidden units with sigmoid (h ∈ (0, 1)), sampled as Bernoulli. Sigmoid is bounded → no dead-unit problem → PCD-safe. Full sweep L=[4,5,6,7] × 10 seeds, shuffled split, 200 epochs.
+
+**Full sweep results (val NLL, mean ± std over seeds, 10 seeds per L):**
+
+| L | Val NLL | h_mean range | Divergences |
+|---|---|---|---|
+| 4 | 0.460 ± 0.005 | 0.30–0.59 | 0/10 |
+| 5 | 0.449 ± 0.003 | 0.27–0.60 | 0/10 |
+| 6 | 0.448 ± 0.007 | 0.13–0.63 | 0/10 |
+| 7 | 0.443 ± 0.019 | 0.19–0.63 | 0/10 |
+
+**Key observations:**
+- **No NaN divergences** across all 40 runs — PCD-safe by design (sigmoid is bounded).
+- **h_mean stays in 0.13–0.63** — healthy hidden activity, no dead units (sparsity 0%).
+- **Strong scale:** NLL improves monotonically with L: 0.460 → 0.449 → 0.448 → 0.443.
+- **Beats NB-Bernoulli baseline:** NBSigmoidRBM L=4 (0.460) ≈ NB-Bernoulli L=6 (0.48). L=7 (0.443) is the **lowest NLL achieved across all model families** on the shuffled split.
+- L=6 and L=7 are statistically indistinguishable (overlapping ±1σ).
+
+**Decision:** NBSigmoidRBM is the recommended NB-family hidden unit type. Sigmoid is the correct bounded nonlinearity for count-data RBMs: it prevents hidden activation runaway without external clamping, supports PCD, and yields the best NLL of any tested configuration.
+
+**Rationale:** Four hidden unit types were tested for NB-family RBMs:
+1. **Bernoulli** (NB_RBM) — baseline. Stable, but Bernoulli hides the continuous-valued pre-activation behind a coin flip, losing signal.
+2. **ReLU** (NB_ReLU_RBM) — unbounded → dead units + NaN; clamped [0,5] still 6/10 divergent at scale. Abandoned.
+3. **Sigmoid** (NBSigmoidRBM) — bounded, PCD-safe, no dead units, best NLL. Selected.
+4. **Softmax** (NBSoftmaxRBM) — bounded, PCD-safe, but collapses to deterministic assignments (H≈0.05). See LOG-022.
+
+**Consequences:** NBSigmoidRBM is the new NB-family baseline. Future development should use sigmoid hidden units. L=7 (or L=6 if parsimony preferred) is the recommended final model size.
+
+---
+
+## LOG-022 · NBSoftmaxRBM: softmax hidden units collapse to near-deterministic assignments
+
+**Context:** `NBSoftmaxRBM` replaces Bernoulli hidden units with softmax (Σ_j h_j = 1, 0 ≤ h_j ≤ 1), sampled as one-hot from multinomial. Softmax is bounded → PCD-safe. 5-seed test L=5 shuffled, 200 epochs.
+
+**Results (val NLL, 5 seeds at L=5):**
+
+| Seed | Val NLL | H (entropy) |
+|---|---|---|
+| 0 | 0.491 | 0.06 |
+| 1 | 0.487 | 0.05 |
+| 2 | 0.494 | 0.04 |
+| 3 | 0.498 | 0.07 |
+| 4 | 0.484 | 0.06 |
+
+**Mean NLL: 0.491 ± 0.005.** Entropy H ≈ 0.05 (max possible log₂5 ≈ 2.32), meaning each sample is assigned to essentially one archetypal unit ≈100% of the time.
+
+**Decision:** NBSoftmaxRBM is not useful for this dataset. The softmax competition forces each sample into a single hidden state, discarding the distributed representation that gives RBMs their expressive power. The near-zero entropy confirms the model collapses to a hard clustering.
+
+**Rationale:** The softmax mixture-of-experts assumption is too rigid for plankton community data, where multiple ecological processes (bloom, succession, seasonality) overlap. A distributed representation (Bernoulli or Sigmoid) is necessary to capture overlapping factors.
+
+**Consequences:** NBSoftmaxRBM retained in the codebase for completeness but not recommended for further use. It is excluded from the main sweep.

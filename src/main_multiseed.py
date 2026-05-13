@@ -25,6 +25,8 @@ MAX_WORKERS = 10
 L_VALUES = {
     "nb":               [3, 4, 5, 6, 7],
     "zinb":             [3, 4, 5, 6, 7],
+    "nb_sigmoid":       [4, 5, 6, 7],
+    "nb_softmax":       [4, 5, 6],
     "bernoulli_median": [3, 4, 5, 6, 7],
     "bernoulli_zero":   [3, 4, 5, 6, 7],
 }
@@ -41,11 +43,11 @@ GAMMA          = 1e-4
 BETA           = 0.9
 EPSILON        = 1e-4
 VAL_FRAC       = 0.15
-SHUFFLE_SPLIT  = False  # True = random split, False = chronological
+SHUFFLE_SPLIT  = True  # True = random split, False = chronological
 COUNT_SCALE    = 1000
 THETA_INIT_LOG = 0.0
 
-# PCD settings (NB only - Bernoulli landscape is well-conditioned)
+# PCD settings (NB/ZINB families only)
 USE_PCD      = True
 N_PCD_CHAINS = 500   # must be >= BATCH_F
 
@@ -72,7 +74,7 @@ def train_one(job: tuple) -> str:
             np.random.seed(seed)
 
             from models.io import load_and_binarise, load_raw_counts
-            from models import BernoulliRBM, NB_RBM, ZINB_RBM
+            from models import BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM
             from models.visualization import export_results_csv
             from models.utils import get_device, save_weights
 
@@ -87,7 +89,7 @@ def train_one(job: tuple) -> str:
                                       **shuffle_kw)
                 rbm = BernoulliRBM(n_visible=len(taxa_cols), n_hidden=l_val,
                                    device=device)
-            else:
+            elif family == "nb":
                 X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
                     load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
                                     val_frac=VAL_FRAC, device=device,
@@ -103,9 +105,42 @@ def train_one(job: tuple) -> str:
                 rbm = ZINB_RBM(n_visible=len(taxa_cols), n_hidden=l_val,
                                device=device, theta_init_log=THETA_INIT_LOG)
                 thresholds = None
+            elif family == "nb_relu":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = NB_ReLU_RBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                  device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
+            elif family == "zinb_relu":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = ZINB_ReLU_RBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                    device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
+            elif family == "nb_sigmoid":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = NBSigmoidRBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                   device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
+            elif family == "nb_softmax":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = NBSoftmaxRBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                   device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
 
             pcd_kwargs = ({"use_pcd": USE_PCD, "n_pcd_chains": N_PCD_CHAINS}
-                          if family in ("nb", "zinb") else {})
+                          if family in ("nb", "zinb", "nb_relu", "zinb_relu",
+                                        "nb_sigmoid", "nb_softmax") else {})
             history = rbm.train(
                 X_train, X_val,
                 epochs=EPOCHS, lr=LR, lr_decay=LR_DECAY,
@@ -120,9 +155,9 @@ def train_one(job: tuple) -> str:
             W, a, b = params[0], params[1], params[2]
             save_dict = dict(W=W, a=a, b=b, taxa=taxa_cols,
                              visible_model=family)
-            if family == "nb":
+            if family in ("nb", "nb_relu", "nb_sigmoid", "nb_softmax"):
                 save_dict["log_theta"] = params[3]
-            if family == "zinb":
+            if family in ("zinb", "zinb_relu"):
                 save_dict["log_theta"] = params[3]
                 save_dict["logit_pi"] = params[4]
             if thresholds is not None:

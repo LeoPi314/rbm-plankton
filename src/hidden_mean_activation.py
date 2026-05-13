@@ -20,7 +20,8 @@ from models.visualization import ABSORBER_HI, ABSORBER_LO, mean_activations, plo
 RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
 OUT_DIR     = Path(__file__).parent.parent / "results" / "figures" / "hidden"
 
-FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb"]
+FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb", "zinb",
+            "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax"]
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, Path]]:

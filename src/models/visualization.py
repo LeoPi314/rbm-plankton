@@ -44,6 +44,8 @@ def export_results_csv(history, W, taxa_cols, out_dir):
         cols["val_nll"] = history["val_nll"]
     if history.get("theta_mean"):
         cols["theta_mean"] = history["theta_mean"]
+    if history.get("pi_mean"):
+        cols["pi_mean"] = history["pi_mean"]
     if history.get("sat_mid"):
         cols["sat_lo"]  = history["sat_lo"]
         cols["sat_hi"]  = history["sat_hi"]
@@ -169,12 +171,22 @@ FAMILY_META = {
     "bernoulli_median": dict(col="val_pll", label="Val PLL", better="higher"),
     "bernoulli_zero":   dict(col="val_pll", label="Val PLL", better="higher"),
     "nb":               dict(col="val_nll", label="Val NLL", better="lower"),
+    "zinb":             dict(col="val_nll", label="Val NLL", better="lower"),
+    "nb_relu":          dict(col="val_nll", label="Val NLL", better="lower"),
+    "zinb_relu":        dict(col="val_nll", label="Val NLL", better="lower"),
+    "nb_sigmoid":       dict(col="val_nll", label="Val NLL", better="lower"),
+    "nb_softmax":       dict(col="val_nll", label="Val NLL", better="lower"),
 }
 
 COLORS = {
     "bernoulli_median": "#1f77b4",
     "bernoulli_zero":   "#ff7f0e",
     "nb":               "#2ca02c",
+    "zinb":             "#9467bd",
+    "nb_relu":          "#e377c2",
+    "zinb_relu":        "#8c564b",
+    "nb_sigmoid":       "#bcbd22",
+    "nb_softmax":       "#17becf",
 }
 
 
@@ -314,6 +326,70 @@ def plot_nb_diagnostics(runs, figures_dir: Path):
 
     fig.tight_layout()
     out = figures_dir / "sweep_nb_diagnostics.png"
+    fig.savefig(out, dpi=150)
+    print(f"Saved: {out}")
+    plt.close(fig)
+
+
+def plot_zinb_diagnostics(runs, figures_dir: Path):
+    """Three-panel figure: ZINB val_nll, theta_mean, and pi_mean trajectories per L."""
+    zinb_runs = runs.get("zinb", {})
+    l_values = sorted(zinb_runs)
+    n = len(l_values)
+    cmap = plt.colormaps["viridis"]
+
+    fig, (ax_nll, ax_theta, ax_pi) = plt.subplots(1, 3, figsize=(15, 4))
+    fig.suptitle("ZINB-RBM: NLL, θ, and π trajectories by L (mean ± 1σ over seeds)", fontsize=13)
+
+    for i, l_val in enumerate(l_values):
+        color = cmap(i / max(n - 1, 1))
+        label = f"L={l_val}"
+        nll_agg = aggregate_curves(zinb_runs[l_val], "val_nll")
+        if nll_agg is not None:
+            nll_mean, nll_std = nll_agg
+            ax_nll.plot(nll_mean.index, nll_mean.values, color=color, linewidth=1.5, label=label)
+            ax_nll.fill_between(nll_mean.index,
+                                nll_mean.values - nll_std.values,
+                                nll_mean.values + nll_std.values,
+                                color=color, alpha=0.2)
+        else:
+            ax_nll.annotate(f"L={l_val}: diverged", xy=(0.05, 0.05 + i * 0.07),
+                            xycoords="axes fraction", fontsize=8, color="red")
+        theta_agg = aggregate_curves(zinb_runs[l_val], "theta_mean")
+        if theta_agg is not None:
+            theta_mean, theta_std = theta_agg
+            ax_theta.plot(theta_mean.index, theta_mean.values, color=color, linewidth=1.5, label=label)
+            ax_theta.fill_between(theta_mean.index,
+                                  theta_mean.values - theta_std.values,
+                                  theta_mean.values + theta_std.values,
+                                  color=color, alpha=0.2)
+        pi_agg = aggregate_curves(zinb_runs[l_val], "pi_mean")
+        if pi_agg is not None:
+            pi_mean, pi_std = pi_agg
+            ax_pi.plot(pi_mean.index, pi_mean.values, color=color, linewidth=1.5, label=label)
+            ax_pi.fill_between(pi_mean.index,
+                               pi_mean.values - pi_std.values,
+                               pi_mean.values + pi_std.values,
+                               color=color, alpha=0.2)
+
+    ax_nll.set_title("Val NLL (↓)")
+    ax_nll.set_xlabel("Epoch")
+    ax_nll.set_ylabel("NLL")
+    ax_nll.legend(fontsize=8)
+    ax_nll.grid(True, alpha=0.3)
+    ax_theta.set_title("θ mean (dispersion)")
+    ax_theta.set_xlabel("Epoch")
+    ax_theta.set_ylabel("θ")
+    ax_theta.legend(fontsize=8)
+    ax_theta.grid(True, alpha=0.3)
+    ax_pi.set_title("π mean (inflation)")
+    ax_pi.set_xlabel("Epoch")
+    ax_pi.set_ylabel("π")
+    ax_pi.legend(fontsize=8)
+    ax_pi.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    out = figures_dir / "sweep_zinb_diagnostics.png"
     fig.savefig(out, dpi=150)
     print(f"Saved: {out}")
     plt.close(fig)

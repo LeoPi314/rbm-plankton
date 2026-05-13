@@ -6,6 +6,27 @@
 
 ---
 
+## Complete model architecture
+
+```
+BaseRBM                         base_rbm.py
+├── BernoulliRBM                bernoulli_rbm.py
+│
+├── NB branch                   nb_rbm.py
+│   └── NB_RBM(BernoulliHiddenMonitor, BaseRBM)
+│       ├── NB_ReLU_RBM(ReLUHiddenMonitor, NB_RBM)    ❌ abandoned
+│       ├── NBSigmoidRBM(SigmoidHiddenMonitor, NB_RBM) ✓ recommended
+│       └── NBSoftmaxRBM(SoftmaxHiddenMonitor, NB_RBM) ❌ low entropy
+│
+└── ZINB branch                 zinb_rbm.py
+    └── ZINB_RBM(BernoulliHiddenMonitor, BaseRBM)
+        └── ZINB_ReLU_RBM(ReLUHiddenMonitor, ZINB_RBM)
+```
+
+**Recommendation:** Use `NBSigmoidRBM` for all NB-family work. Sigmoid hidden units are PCD-safe, produce the lowest NLL (0.443 ± 0.019 at L=7), and show healthy hidden activity (h_mean 0.13–0.63). L=6–7 are statistically indistinguishable.
+
+---
+
 ## Now
 
 _(nothing active)_
@@ -51,3 +72,7 @@ _(nothing queued)_
 | Cross-model comparison NB vs BB-median L=6 | Done. Both models independently recover summer/winter community axes. NB uses compositional representation (~30 patterns/64, consistent across seeds). BB uses exclusive switching. Core structure agreed. |
 | NaN test set evaluation | Done (LOG-018). 160 rows, 3 missingness patterns. NB-RBM test_nll ≤ val_nll across all patterns; more robust than Bernoulli-median. October 2022 NLL decreases over the month. |
 | January–February 2023 anomaly | Closed (LOG-019). Total abundance ~7× mean Dec 2022–Feb 2023. Eyring 2025 covers the period, documents no instrument issue, and states their philosophy is to preserve genuine biological variability. Retained as probable real ecological event; no exclusion. |
+| NB_ReLU_RBM viability | Abandoned (LOG-020). Clamp [0,5] required but 6/10 seeds still divergent at scale. ReLU is fundamentally mismatched with count-scale visible units. |
+| NBSigmoidRBM full sweep L=4–7 | Complete (LOG-021). 40/40 stable, no divergences. NLL=0.443±0.019 at L=7, beating all other NB-family variants. Sigmoid hidden units selected as the recommended NB hidden type. |
+| NBSoftmaxRBM test | Complete (LOG-022). 5-seed L=5 test. Low NLL (0.491) but entropy H≈0.05 — collapses to deterministic assignments. Not useful for distributed representation. Excluded from main sweep. |
+| Hidden monitoring mixins | Complete. `BernoulliHiddenMonitor`, `ReLUHiddenMonitor`, `SigmoidHiddenMonitor`, `SoftmaxHiddenMonitor` in `_hidden_monitors.py`. |
