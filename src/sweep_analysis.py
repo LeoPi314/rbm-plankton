@@ -1,8 +1,8 @@
 """
 sweep_analysis.py - NLL/PLL vs L sweep analysis across all trained models.
 
-Reads results/training_runs/{family}_L{n}/seed_*/rbm_training_curves.csv and
-produces three figures in results/figures/sweep/:
+Reads training_runs/{family}_L{n}/seed_*/rbm_training_curves.csv and
+produces three figures in results/sweep/:
   1. Final val metric vs L per model family (mean +/- std over seeds)
   2. Val metric training curves overlaid per family
   3. NB-specific: NLL and theta_mean trajectories per L
@@ -20,10 +20,10 @@ from models.visualization import (
     plot_final_metric, plot_sweep_curves, plot_nb_diagnostics, plot_zinb_diagnostics,
 )
 
-RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
+RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
 SHUFFLED = False  # set True to analyse shuffled-split runs
 SUFFIX = "_shuffled" if SHUFFLED else ""
-FIGURES_DIR = Path(__file__).parent.parent / "results" / "figures" / f"sweep{SUFFIX}"
+FIGURES_DIR = Path(__file__).parent.parent / "results" / f"sweep{SUFFIX}"
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, list[Path]]]:

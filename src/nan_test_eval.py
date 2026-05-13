@@ -19,8 +19,8 @@ Three missingness patterns survive the filter:
 Output:
   results/nan_eval/nan_eval_rows.csv              per-row NLL, date, pattern
   results/nan_eval/nan_eval_summary.csv           per-(family, pattern) mean±std
-  results/figures/nan_eval/nan_eval_bars.png      bar chart: test NLL per pattern
-  results/figures/nan_eval/nan_eval_timeseries.png time series of NLL for p31 (Oct 2022)
+  results/nan_eval/nan_eval_bars.png              bar chart: test NLL per pattern
+  results/nan_eval/nan_eval_timeseries.png        time series of NLL for p31 (Oct 2022)
 """
 
 import sys
@@ -40,9 +40,9 @@ from models.utils import load_weights, get_device
 from models.nb_rbm import NB_RBM
 from models.bernoulli_rbm import BernoulliRBM
 
-RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
+RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
 OUT_DIR     = Path(__file__).parent.parent / "results" / "nan_eval"
-FIG_DIR     = Path(__file__).parent.parent / "results" / "figures" / "nan_eval"
+FIG_DIR     = Path(__file__).parent.parent / "results" / "nan_eval"
 N_SAMPLES   = 100
 COUNT_SCALE = 1000
 L           = 6

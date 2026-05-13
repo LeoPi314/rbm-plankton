@@ -8,14 +8,14 @@ Three analyses:
      counts distinct patterns (effective state usage out of 2^6=64).
   3. Seasonal profiles - mean activation per month per unit for both models.
 
-Outputs (CSVs) in results/figures/hidden/:
+Outputs (CSVs) in results/hidden/:
   cross_model_correlation.csv    - 6x6 Pearson matrix
   cross_model_matched_pairs.csv  - best NB<->BB match per unit
   nb_pattern_frequency.csv       - binary pattern counts
   seasonal_profiles_nb.csv       - mean activation by month
   seasonal_profiles_bb.csv       - mean activation by month
 
-Outputs (plots) in results/figures/hidden/:
+Outputs (plots) in results/hidden/:
   cross_model_correlation.png
   nb_pattern_frequency.png
   seasonal_profiles.png
@@ -30,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from models.io import best_seed_dir, METRIC_COL
 from models.visualization import plot_correlation, plot_pattern_frequency, plot_seasonal_profiles
 
-RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "figures" / "hidden"
+RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
+OUT_DIR     = Path(__file__).parent.parent / "results" / "hidden"
 TARGET_L    = 6
 
 

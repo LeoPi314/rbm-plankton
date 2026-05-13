@@ -1,5 +1,5 @@
 """
-plot_training_runs.py — Plot all trained models from /results/training_runs
+plot_training_runs.py — Plot all trained models from training_runs/
 =============================================================================
 
 Reads the CSV files saved in each seed folder and generates plots:
@@ -133,7 +133,7 @@ def process_training_run(run_dir: Path, figures_dir: Path):
 
 def main():
     base_dir = Path(__file__).parent.parent
-    training_runs_dir = base_dir / "results" / "training_runs"
+    training_runs_dir = base_dir / "training_runs"
     figures_dir = base_dir / "figures" / "training_runs"
 
     figures_dir.mkdir(parents=True, exist_ok=True)

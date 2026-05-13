@@ -48,7 +48,30 @@ doc/*.pdf
 # Superseded experimental runs
 archive/
 
-# Results: ignore training runs, keep figures
+# Training run data (weights, CSVs, logs) — large, regeneratable
+training_runs/
+training_runs_CD1/
+
+# Generated per-run figures (from plot_training_runs.py)
+figures/
+
+# Raw data
+data/
+
+# Temp
+tmp/
+
+# Results: track analysis outputs, ignore everything else
 results/*
-!results/figures/
-!results/figures/**
+!results/dataset_analysis/
+!results/dataset_analysis/**
+!results/hidden/
+!results/hidden/**
+!results/nan_eval/
+!results/nan_eval/**
+!results/split_comparison/
+!results/split_comparison/**
+!results/sweep/
+!results/sweep/**
+!results/sweep_shuffled/
+!results/sweep_shuffled/**

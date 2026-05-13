@@ -53,14 +53,19 @@ rbm-plankton/
 │       ├── bernoulli_rbm.py     # BB-RBM: CD-1, pll, hidden_probs
 │       └── nb_rbm.py            # NBB-RBM: PCD-1, nll, hidden_probs, θ update
 │
-├── results/
-│   ├── training_runs/           # Canonical model artifacts (weights + CSVs)
+├── training_runs/               # Model training artifacts (weights, CSVs, logs)
 │   │   └── {family}_L{n}/seed_{k}/
-│   └── figures/
-│       ├── dataset_analysis/    # EDA figures
-│       ├── sweep/               # L-sweep figures
-│       ├── hidden/              # Hidden activation analysis figures and CSVs
-│       └── training_runs/       # Per-run training curves (when PLOT_RESULTS=True)
+├── training_runs_CD1/           # CD-1 training artifacts (separate sweep)
+├── figures/
+│   └── training_runs/           # Per-run figures (training curves, weight heatmaps, hidden activations)
+│
+├── results/
+│   ├── hidden/                  # Hidden activation analysis — CSVs + figures
+│   ├── nan_eval/                # NaN test set evaluation — CSVs + figures
+│   ├── split_comparison/        # Split strategy comparison — CSVs + figures
+│   ├── dataset_analysis/        # EDA figures
+│   ├── sweep/                   # L-sweep analysis figures
+│   └── sweep_shuffled/          # Shuffled-split L-sweep figures
 │
 ├── archive/                     # Superseded runs and scripts (gitignored)
 ├── requirements.txt
@@ -102,7 +107,7 @@ python src/main_multiseed.py
 ```
 
 Trains all `(family, L, seed)` combinations in parallel. Skips already-completed
-runs automatically. Results go to `results/training_runs/{family}_L{n}/seed_{k}/`.
+runs automatically. Results go to `training_runs/{family}_L{n}/seed_{k}/`.
 
 **Model families:**
 
@@ -117,10 +122,10 @@ runs automatically. Results go to `results/training_runs/{family}_L{n}/seed_{k}/
 Run from the project root after training:
 
 ```bash
-python src/sweep_analysis.py          # L-sweep figures → results/figures/sweep/
-python src/hidden_coactivation.py     # Weight profiles + state timelines
-python src/hidden_mean_activation.py  # Mean activation per unit
-python src/hidden_cross_model.py      # NB vs BB-median comparison
+python src/sweep_analysis.py          # L-sweep figures → results/sweep/
+python src/hidden_coactivation.py     # Weight profiles + state timelines → results/hidden/
+python src/hidden_mean_activation.py  # Mean activation per unit → results/hidden/
+python src/hidden_cross_model.py      # NB vs BB-median comparison → results/hidden/
 ```
 
 ---
@@ -130,9 +135,9 @@ python src/hidden_cross_model.py      # NB vs BB-median comparison
 | Stage                                             | Status                                    |
 | ------------------------------------------------- | ----------------------------------------- |
 | Dataset EDA                                       | Done                                      |
-| L-sweep (N=10 seeds, L∈{3,4,5,6,7}, all families) | Done — `results/training_runs/`           |
+| L-sweep (N=10 seeds, L∈{3,4,5,6,7}, all families) | Done — `training_runs/`                   |
 | L selection                                       | Done — **L=6** for all families (LOG-017) |
-| Hidden activation analysis                        | Done — `results/figures/hidden/`          |
+| Hidden activation analysis                        | Done — `results/hidden/`                  |
 | Cross-model comparison (NB vs BB-median)          | Done                                      |
 | NaN test set evaluation                           | **In progress**                           |
 

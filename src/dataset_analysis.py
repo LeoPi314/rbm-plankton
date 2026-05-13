@@ -14,7 +14,7 @@ Usage:
   python src/dataset_analysis.py path/to/data.csv         # custom path
   python src/dataset_analysis.py path/to/data.csv ./figs  # custom output dir
 
-All figures are saved to OUTPUT_DIR (default: results/figures/dataset_analysis/).
+All figures are saved to OUTPUT_DIR (default: results/dataset_analysis/).
 """
 
 import sys
@@ -35,7 +35,7 @@ from scipy import stats
 
 _ROOT      = Path(__file__).parent.parent
 DATA_PATH  = str(_ROOT / "data/raw/TimeSeries_countsuL_clean.csv")
-OUTPUT_DIR = str(_ROOT / "results/figures/dataset_analysis")
+OUTPUT_DIR = str(_ROOT / "results/dataset_analysis")
 
 # eps for log-transform: 10% of the global minimum non-zero value
 # (open question - see DECISIONS.md; this is a reasonable starting point)

@@ -2,7 +2,7 @@
 main_multiseed.py - Parallel multi-seed training for statistical L comparison.
 
 Trains each (family, L, seed) combination in parallel using ProcessPoolExecutor.
-Saves CSVs and weights to results/training_runs/{family}_L{n}/seed_{k}/.
+Saves CSVs and weights to training_runs/{family}_L{n}/seed_{k}/.
 
 Usage:
     python src/main_multiseed.py
@@ -52,7 +52,7 @@ USE_PCD      = True
 N_PCD_CHAINS = 500   # must be >= BATCH_F
 
 DATA_PATH = Path(__file__).parent.parent / "data/raw/TimeSeries_countsuL_clean.csv"
-OUT_ROOT  = Path(__file__).parent.parent / "results" / "training_runs"
+OUT_ROOT  = Path(__file__).parent.parent / "training_runs"
 
 
 # -- Worker --------------------------------------------------------------------

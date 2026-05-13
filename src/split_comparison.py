@@ -14,7 +14,7 @@ positions are iteratively inferred from the model before the final scoring step.
 
 Output:
   results/split_comparison/split_comparison.csv
-  results/figures/split_comparison/split_comparison.png
+  results/split_comparison/split_comparison.png
 """
 
 import sys
@@ -34,9 +34,9 @@ from models.utils import load_weights, get_device
 from models.nb_rbm import NB_RBM
 from models.bernoulli_rbm import BernoulliRBM
 
-RESULTS_DIR = Path(__file__).parent.parent / "results" / "training_runs"
+RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
 OUT_DIR     = Path(__file__).parent.parent / "results" / "split_comparison"
-FIG_DIR     = Path(__file__).parent.parent / "results" / "figures" / "split_comparison"
+FIG_DIR     = Path(__file__).parent.parent / "results" / "split_comparison"
 N_SAMPLES   = 100
 N_GIBBS     = 5      # clamped Gibbs steps to infer missing positions before scoring
 COUNT_SCALE = 1000

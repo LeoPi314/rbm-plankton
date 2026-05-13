@@ -159,13 +159,13 @@ Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 ```
 src/
   main_multiseed.py       training pipeline — parallel N-seed runs per (family, L)
-  dataset_analysis.py     EDA pipeline — figures → results/figures/dataset_analysis/
-  sweep_analysis.py       L-sweep pipeline — figures → results/figures/sweep/
-  hidden_coactivation.py  hidden analysis pipeline — weight profiles + state timelines
-  hidden_mean_activation.py  hidden analysis pipeline — mean activation per unit
-  hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison
-  nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/ + results/figures/nan_eval/
-  plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from results/training_runs/ → results/figures/training_runs/
+  dataset_analysis.py     EDA pipeline — figures → results/dataset_analysis/
+  sweep_analysis.py       L-sweep pipeline — figures → results/sweep/
+  hidden_coactivation.py  hidden analysis pipeline — weight profiles + state timelines → results/hidden/
+  hidden_mean_activation.py  hidden analysis pipeline — mean activation per unit → results/hidden/
+  hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison → results/hidden/
+  nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/
+  plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from training_runs/ → figures/training_runs/
     models/
       __init__.py           exports: BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM
       io.py                 file I/O: training data loaders + results navigation
@@ -178,18 +178,20 @@ src/
       zinb_rbm.py           ZINB_RBM, ZINB_ReLU_RBM: train (PCD-1), nll, hidden_probs, reconstruct, θ + π update
       _hidden_monitors.py   mixins: BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
 
+training_runs/{family}_L{n}/seed_{k}/   training artifacts (canonical: multiseed PCD runs)
+  weights.npz
+  rbm_training_curves.csv
+  rbm_weights.csv
+  rbm_hidden_activations.csv
+  train.log
+training_runs_CD1/                      CD-1 training artifacts (separate sweep)
+figures/training_runs/                  training curves and weight heatmaps (plot_training_runs.py)
+
 results/
-  training_runs/{family}_L{n}/seed_{k}/   training artifacts (canonical: multiseed PCD runs)
-    weights.npz
-    rbm_training_curves.csv
-    rbm_weights.csv
-    rbm_hidden_activations.csv
-    train.log
-  nan_eval/            NaN test set scores — per-pattern NLL summary CSV (nan_test_eval.py)
-  figures/
-    training_runs/     training curves and weight heatmaps (plot_training_runs.py)
-    dataset_analysis/  EDA figures from dataset_analysis.py
-    hidden/            hidden activation analysis outputs
-    sweep/             L-sweep analysis figures
-    nan_eval/          NaN evaluation figures (nan_test_eval.py)
+  dataset_analysis/   EDA figures from dataset_analysis.py
+  sweep/              L-sweep analysis figures from sweep_analysis.py (chronological split)
+  sweep_shuffled/     L-sweep analysis figures from sweep_analysis.py (shuffled split)
+  hidden/             hidden activation analysis — CSVs + figures from hidden_*.py
+  nan_eval/           NaN test set evaluation — CSV scores + figures from nan_test_eval.py
+  split_comparison/   split strategy comparison — CSV + figures from split_comparison.py
 ```
