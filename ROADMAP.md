@@ -29,13 +29,15 @@ BaseRBM                         base_rbm.py
 
 ## Now
 
-_(nothing active)_
+1. **Run NBSigmoidRBM shuffled sweep** — L∈[4,5,6,7], 10 seeds, shuffled split, 500 epochs
+2. **Run NBSoftmaxRBM shuffled sweep** — L∈[4,5,6], 10 seeds, shuffled split, 500 epochs
 
 ---
 
 ## Next
 
-_(nothing queued)_
+1. **Run NBSigmoidRBM chronological sweep** — L∈[4,5,6,7], 10 seeds, chronological split, 500 epochs
+2. **Evaluate sweep results** — compare NLL vs NB-Bernoulli baseline, check stability and h_mean
 
 ---
 
@@ -73,6 +75,4 @@ _(nothing queued)_
 | NaN test set evaluation | Done (LOG-018). 160 rows, 3 missingness patterns. NB-RBM test_nll ≤ val_nll across all patterns; more robust than Bernoulli-median. October 2022 NLL decreases over the month. |
 | January–February 2023 anomaly | Closed (LOG-019). Total abundance ~7× mean Dec 2022–Feb 2023. Eyring 2025 covers the period, documents no instrument issue, and states their philosophy is to preserve genuine biological variability. Retained as probable real ecological event; no exclusion. |
 | NB_ReLU_RBM viability | Abandoned (LOG-020). Clamp [0,5] required but 6/10 seeds still divergent at scale. ReLU is fundamentally mismatched with count-scale visible units. |
-| NBSigmoidRBM full sweep L=4–7 | Complete (LOG-021). 40/40 stable, no divergences. NLL=0.443±0.019 at L=7, beating all other NB-family variants. Sigmoid hidden units selected as the recommended NB hidden type. |
-| NBSoftmaxRBM test | Complete (LOG-022). 5-seed L=5 test. Low NLL (0.491) but entropy H≈0.05 — collapses to deterministic assignments. Not useful for distributed representation. Excluded from main sweep. |
 | Hidden monitoring mixins | Complete. `BernoulliHiddenMonitor`, `ReLUHiddenMonitor`, `SigmoidHiddenMonitor`, `SoftmaxHiddenMonitor` in `_hidden_monitors.py`. |
