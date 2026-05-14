@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
-from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor
+from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
 
 
 class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
@@ -119,32 +119,24 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
 
         return log_prob.mean()
 
-    def _zinb_residual(self, V, mu):
+    def _zinb_residual(self, V, mu, pi=None):
         """
         Weighted residual r_i = d log ZINB(v_i|h) / d eta_i.
         Used in CD gradients for W and a.
         Shape: (batch, D)
         """
-        pi = self._pi().detach()
+        if pi is None:
+            pi = self._pi().detach()
         theta = self.log_theta.detach().exp().clamp(min=1e-4)
         eps = 1e-8
 
-        residual = torch.zeros_like(V)
+        nb_res = theta * (V - mu) / (mu + theta + eps)
+        log_f = theta * torch.log(theta / (theta + mu + eps))
+        f = torch.exp(log_f)
+        p0 = pi + (1 - pi) * f
+        zero_res = -(1 - pi) * theta * mu * f / ((mu + theta + eps) * (p0 + eps))
 
-        mask_pos = V > 0
-        if mask_pos.any():
-            residual[mask_pos] = (theta * (V - mu) / (mu + theta + eps))[mask_pos]
-
-        mask_zero = V == 0
-        if mask_zero.any():
-            log_f = theta * torch.log(theta / (theta + mu + eps))
-            f = torch.exp(log_f)
-            p0 = pi + (1 - pi) * f
-            numer = (1 - pi) * theta * mu * f
-            denom = (mu + theta + eps) * (p0 + eps)
-            residual[mask_zero] = (-numer / denom)[mask_zero]
-
-        return residual
+        return torch.where(V > 0, nb_res, zero_res)
 
     # --- public interface ---
 
@@ -223,10 +215,12 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
                 idx = torch.randperm(N, device=self.device)[:batch_size]
                 V0  = X_train[idx]
 
+                pi_val = self._pi().detach()
+
                 ph0 = self._ph_given_v(V0)
                 H0  = self._sample_bernoulli(ph0)
                 mu0 = self._mu(H0)
-                r0  = self._zinb_residual(V0, mu0)
+                r0  = self._zinb_residual(V0, mu0, pi=pi_val)
 
                 if use_pcd:
                     sel = torch.randint(0, n_pcd_chains, (batch_size,),
@@ -247,14 +241,14 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
                         Hk  = self._sample_bernoulli(phk)
 
                 muk = self._mu(Hk)
-                rk  = self._zinb_residual(Vk, muk)
+                rk  = self._zinb_residual(Vk, muk, pi=pi_val)
 
                 dW = (r0.t() @ ph0  - rk.t() @ phk) / batch_size
                 da = (r0 - rk).mean(0)
                 db = (ph0 - phk).mean(0)
 
                 recon_acc += F.mse_loss(
-                    (1 - self._pi().detach().unsqueeze(0)) * mu0, V0
+                    (1 - pi_val.unsqueeze(0)) * mu0, V0
                 ).item()
 
                 sW = beta * sW + (1 - beta) * dW.pow(2)
@@ -268,32 +262,25 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
                 if gamma > 0:
                     self.W -= gamma * current_lr * self.W.sign()
 
-                # theta update via autograd on positive phase NLL
+                # combined theta + pi update via single autograd pass
                 self.log_theta.requires_grad_(True)
-                mu0_for_theta = self._mu(H0.detach())
-                nll_theta = -self._zinb_log_prob(V0, mu0_for_theta)
-                nll_theta.backward()
+                self.logit_pi.requires_grad_(True)
+                mu0_for_params = self._mu(H0.detach())
+                nll = -self._zinb_log_prob(V0, mu0_for_params)
+                nll.backward()
 
                 with torch.no_grad():
                     g_theta = self.log_theta.grad.nan_to_num(nan=0.0).clone()
-                    s_theta = beta * s_theta + (1 - beta) * g_theta.pow(2)
-                    self.log_theta -= lr_theta * g_theta / (s_theta + epsilon).sqrt()
-                    self.log_theta.clamp_(-10.0, 10.0)
-                    self.log_theta.grad.zero_()
-                self.log_theta.requires_grad_(False)
-
-                # logit_pi update via autograd on positive phase NLL
-                self.logit_pi.requires_grad_(True)
-                mu0_for_pi = self._mu(H0.detach())
-                nll_pi = -self._zinb_log_prob(V0, mu0_for_pi)
-                nll_pi.backward()
-
-                with torch.no_grad():
                     g_pi = self.logit_pi.grad.nan_to_num(nan=0.0).clone()
+                    s_theta = beta * s_theta + (1 - beta) * g_theta.pow(2)
                     s_pi = beta * s_pi + (1 - beta) * g_pi.pow(2)
+                    self.log_theta -= lr_theta * g_theta / (s_theta + epsilon).sqrt()
                     self.logit_pi -= lr_pi * g_pi / (s_pi + epsilon).sqrt()
+                    self.log_theta.clamp_(-10.0, 10.0)
                     self.logit_pi.clamp_(-10.0, 10.0)
+                    self.log_theta.grad.zero_()
                     self.logit_pi.grad.zero_()
+                self.log_theta.requires_grad_(False)
                 self.logit_pi.requires_grad_(False)
 
             current_lr *= lr_decay
@@ -363,3 +350,36 @@ class ZINB_ReLU_RBM(ReLUHiddenMonitor, ZINB_RBM):
 
     def hidden_probs(self, V):
         return self._ph_given_v(V)
+
+
+class ZINBSigmoidRBM(SigmoidHiddenMonitor, ZINB_RBM):
+    def _ph_given_v(self, V):
+        return torch.sigmoid(V @ self.W + self.b)
+
+    def _sample_hidden(self, mean):
+        return torch.bernoulli(mean)
+
+    def _sample_bernoulli(self, prob):
+        return self._sample_hidden(prob)
+
+    @torch.no_grad()
+    def reconstruct(self, V):
+        H = self._ph_given_v(V)
+        return (1 - self._pi().unsqueeze(0)) * self._mu(H)
+
+
+class ZINBSoftmaxRBM(SoftmaxHiddenMonitor, ZINB_RBM):
+    def _ph_given_v(self, V):
+        return torch.softmax(V @ self.W + self.b, dim=1)
+
+    def _sample_hidden(self, mean):
+        idx = torch.multinomial(mean, 1).squeeze(1)
+        return F.one_hot(idx, num_classes=self.L).float()
+
+    def _sample_bernoulli(self, prob):
+        return self._sample_hidden(prob)
+
+    @torch.no_grad()
+    def reconstruct(self, V):
+        H = self._ph_given_v(V)
+        return (1 - self._pi().unsqueeze(0)) * self._mu(H)

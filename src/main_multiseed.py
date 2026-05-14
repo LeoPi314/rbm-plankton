@@ -23,16 +23,18 @@ N_SEEDS     = 10
 MAX_WORKERS = 10
 
 L_VALUES = {
-    "nb":               [3, 4, 5, 6, 7],
-    "zinb":             [3, 4, 5, 6, 7],
-    "nb_sigmoid":       [4, 5, 6, 7],
-    "nb_softmax":       [4, 5, 6],
-    "bernoulli_median": [3, 4, 5, 6, 7],
-    "bernoulli_zero":   [3, 4, 5, 6, 7],
+    "nb":               [],
+    "zinb":             [],
+    "nb_sigmoid":       [],
+    "nb_softmax":       [],
+    "bernoulli_median": [],
+    "bernoulli_zero":   [],
+    "zinb_sigmoid":     [4, 5, 6, 7, 8],
+    "zinb_softmax":     [4, 5, 6, 7, 8],
 }
 
 # Fixed hyperparameters
-EPOCHS         = 500
+EPOCHS         = 1000
 LR             = 0.01
 LR_DECAY       = 0.998
 CD_STEPS       = 1
@@ -66,6 +68,8 @@ def train_one(job: tuple) -> str:
 
     with open(log_path, "w") as log, contextlib.redirect_stdout(log):
         try:
+            import os
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0"
             import torch
             import numpy as np
             import pandas as pd
@@ -74,7 +78,7 @@ def train_one(job: tuple) -> str:
             np.random.seed(seed)
 
             from models.io import load_and_binarise, load_raw_counts
-            from models import BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM
+            from models import BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM, ZINBSigmoidRBM, ZINBSoftmaxRBM
             from models.visualization import export_results_csv
             from models.utils import get_device, save_weights
 
@@ -137,10 +141,27 @@ def train_one(job: tuple) -> str:
                 rbm = NBSoftmaxRBM(n_visible=len(taxa_cols), n_hidden=l_val,
                                    device=device, theta_init_log=THETA_INIT_LOG)
                 thresholds = None
+            elif family == "zinb_sigmoid":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = ZINBSigmoidRBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                     device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
+            elif family == "zinb_softmax":
+                X_train, X_val, dates_train, dates_val, taxa_cols, _ = \
+                    load_raw_counts(str(DATA_PATH), scale=COUNT_SCALE,
+                                    val_frac=VAL_FRAC, device=device,
+                                    **shuffle_kw)
+                rbm = ZINBSoftmaxRBM(n_visible=len(taxa_cols), n_hidden=l_val,
+                                     device=device, theta_init_log=THETA_INIT_LOG)
+                thresholds = None
 
             pcd_kwargs = ({"use_pcd": USE_PCD, "n_pcd_chains": N_PCD_CHAINS}
                           if family in ("nb", "zinb", "nb_relu", "zinb_relu",
-                                        "nb_sigmoid", "nb_softmax") else {})
+                                        "nb_sigmoid", "nb_softmax",
+                                        "zinb_sigmoid", "zinb_softmax") else {})
             history = rbm.train(
                 X_train, X_val,
                 epochs=EPOCHS, lr=LR, lr_decay=LR_DECAY,
@@ -157,7 +178,7 @@ def train_one(job: tuple) -> str:
                              visible_model=family)
             if family in ("nb", "nb_relu", "nb_sigmoid", "nb_softmax"):
                 save_dict["log_theta"] = params[3]
-            if family in ("zinb", "zinb_relu"):
+            if family in ("zinb", "zinb_relu", "zinb_sigmoid", "zinb_softmax"):
                 save_dict["log_theta"] = params[3]
                 save_dict["logit_pi"] = params[4]
             if thresholds is not None:
