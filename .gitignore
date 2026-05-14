@@ -51,6 +51,7 @@ archive/
 # Training run data (weights, CSVs, logs) — large, regeneratable
 training_runs/
 training_runs_CD1/
+weights/
 
 # Generated per-run figures (from plot_training_runs.py)
 figures/
