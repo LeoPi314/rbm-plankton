@@ -105,9 +105,10 @@ Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 | Hidden           | Bernoulli (same as NB-RBM)                                     |
 | Reconstruct      | E[v|h] = (1−π)·μ = (1−π)·exp(a + Wh)                          |
 | Monitor          | Reconstruction MSE · NLL · θ_mean · π_mean · sat_lo/sat_hi/sat_mid |
-| log_θ clamp      | [−10, 10] after each update                                    |
-| logit_pi clamp   | [−5, 5] after each update                                      |
-| Negative phase   | PCD-1 (same as NB-RBM)                                         |
+ | L1 scope         | W only (a is log-mean baseline, same rationale as NB-RBM; see LOG-009) |
+ | log_θ clamp      | [−10, 10] after each update                                    |
+ | logit_pi clamp   | [−5, 5] after each update                                      |
+ | Negative phase   | PCD-1 (same as NB-RBM)                                         |
 
 ### ZINB-ReLU-RBM — ZINB visible, ReLU hidden
 
