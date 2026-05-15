@@ -52,17 +52,23 @@ def _base_load(path, val_frac, device, shuffle=False):
     return df, taxa_cols, dates_train, dates_val, nan_rows, n_train
 
 
-def load_and_binarise(path=DATA_PATH, binarize="median",
+def load_and_binarise(path=DATA_PATH, binarize="median", scale=1000,
                       val_frac=VAL_FRAC, device=torch.device("cpu"),
                       shuffle=False):
     """
     Preprocessing for Bernoulli-Bernoulli RBM.
     Returns binary tensors in {0, 1}.
+
+    scale is applied before binarisation for unit consistency with
+    load_raw_counts (organisms/μL -> organisms/mL).  Binarisation is
+    rank-invariant under positive scaling so the binary output is identical
+    to scale=1; only the stored thresholds change units accordingly.
     """
     df, taxa_cols, dates_train, dates_val, nan_rows, n_train = \
         _base_load(path, val_frac, device, shuffle=shuffle)
 
-    X = df[taxa_cols].values.astype(np.float32)
+    X = df[taxa_cols].values.astype(np.float32) * scale
+    print(f"[Counts] scale={scale}  range=[{X.min():.4f}, {X.max():.4f}]")
 
     if binarize == "zero":
         thresholds = np.zeros(len(taxa_cols), dtype=np.float32)

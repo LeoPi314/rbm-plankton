@@ -7,6 +7,7 @@ visible-side variants (NB / ZINB).
 """
 
 import torch
+from ._constants import BERNOULLI_SAT_LO, BERNOULLI_SAT_HI, SOFTMAX_ENTROPY_EPS
 
 
 class BernoulliHiddenMonitor:
@@ -21,8 +22,8 @@ class BernoulliHiddenMonitor:
     def _compute_hidden_stats(self, X_train):
         with torch.no_grad():
             ph = self._ph_given_v(X_train)
-        sat_lo  = (ph < 0.1).float().mean().item()
-        sat_hi  = (ph > 0.9).float().mean().item()
+        sat_lo  = (ph < BERNOULLI_SAT_LO).float().mean().item()
+        sat_hi  = (ph > BERNOULLI_SAT_HI).float().mean().item()
         sat_mid = 1.0 - sat_lo - sat_hi
         return {"sat_lo": sat_lo, "sat_hi": sat_hi, "sat_mid": sat_mid}
 
@@ -80,7 +81,7 @@ class SoftmaxHiddenMonitor:
     def _compute_hidden_stats(self, X_train):
         with torch.no_grad():
             h = self._ph_given_v(X_train)
-        entropy = (-h * torch.log(h.clamp(min=1e-10))).sum(1).mean().item()
+        entropy = (-h * torch.log(h.clamp(min=SOFTMAX_ENTROPY_EPS))).sum(1).mean().item()
         return {"h_entropy": entropy}
 
     def _hidden_stats_display(self, hid_stats):

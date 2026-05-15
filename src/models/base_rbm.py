@@ -7,6 +7,7 @@ Shared interface and initialization logic.
 import math
 import torch
 import torch.nn.functional as F
+from ._constants import XAVIER_SCALE_FACTOR
 
 
 class BaseRBM:
@@ -18,7 +19,7 @@ class BaseRBM:
         self.device = device
 
         if scale_init:
-            scale = math.sqrt(4.0 / (n_visible + n_hidden))
+            scale = math.sqrt(XAVIER_SCALE_FACTOR / (n_visible + n_hidden))
             self.W = torch.randn(n_visible, n_hidden, device=device) * scale
             self.b = torch.zeros(n_hidden,  device=device)
             self.a = torch.zeros(n_visible, device=device)

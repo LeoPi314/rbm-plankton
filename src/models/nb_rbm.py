@@ -10,6 +10,14 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
 from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
+from ._constants import (
+    THETA_CLAMP_MIN, LOG_PROB_EPS, ETA_CLAMP_MAX,
+    LOG_PARAM_CLAMP_MIN, LOG_PARAM_CLAMP_MAX,
+    RELU_HIDDEN_CLAMP_MAX, LR_PARAM_MULTIPLIER,
+    DEFAULT_LR_DECAY, DEFAULT_GAMMA,
+    DEFAULT_BATCH_I, DEFAULT_BATCH_F, DEFAULT_N_BATCHES,
+    DEFAULT_BETA, DEFAULT_RMSPROP_EPS,
+)
 
 
 class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
@@ -59,7 +67,7 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
 
     def _mu(self, H):
         """NB mean: u_i = exp(n_i), clamped to prevent float32 overflow."""
-        return torch.exp(self._eta(H).clamp(max=10.0))
+        return torch.exp(self._eta(H).clamp(max=ETA_CLAMP_MAX))
 
     def _ph_given_v(self, V):
         """P(H=1|V) = sum(b + V @ W),  shape (batch, L)"""
@@ -75,9 +83,9 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
           g ~ Gamma(theta, theta/u)   ->   v ~ Poisson(g)
         Returns float tensor (Poisson samples are non-negative integers).
         """
-        theta = self.log_theta.detach().exp().clamp(min=1e-4)
+        theta = self.log_theta.detach().exp().clamp(min=THETA_CLAMP_MIN)
         concentration = theta.unsqueeze(0).expand_as(mu)
-        rate = theta.unsqueeze(0) / mu.clamp(min=1e-8)
+        rate = theta.unsqueeze(0) / mu.clamp(min=LOG_PROB_EPS)
         g = torch.distributions.Gamma(concentration, rate).sample()
         v = torch.poisson(g)
         return v.float()
@@ -89,8 +97,8 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
                          + theta*log(theta/(theta+u)) + v*log(u/(theta+u))
         Shape: (batch, D) -> scalar (mean over batch and taxa)
         """
-        theta = self.log_theta.exp().clamp(min=1e-4)
-        eps   = 1e-8
+        theta = self.log_theta.exp().clamp(min=THETA_CLAMP_MIN)
+        eps   = LOG_PROB_EPS
 
         log_nb = (torch.lgamma(V + theta)
                   - torch.lgamma(theta)
@@ -105,8 +113,8 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
         This is dlog NB(v_i|h)/dn_i - used in CD gradients for W and a.
         Shape: (batch, D)
         """
-        theta = self.log_theta.detach().exp().clamp(min=1e-4)
-        return theta * (V - mu) / (mu + theta + 1e-8)
+        theta = self.log_theta.detach().exp().clamp(min=THETA_CLAMP_MIN)
+        return theta * (V - mu) / (mu + theta + LOG_PROB_EPS)
 
     # --- public interface ---
 
@@ -130,9 +138,9 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
         return -self._nb_log_prob(V, mu).item()
 
     def train(self, X_train, X_val=None,
-              epochs=500, lr=0.01, lr_decay=0.998,
-              cd_steps=1, batch_i=10, batch_f=256, n_batches=20,
-              gamma=1e-4, beta=0.9, epsilon=1e-4,
+              epochs=500, lr=0.01, lr_decay=DEFAULT_LR_DECAY,
+              cd_steps=1, batch_i=DEFAULT_BATCH_I, batch_f=DEFAULT_BATCH_F, n_batches=DEFAULT_N_BATCHES,
+              gamma=DEFAULT_GAMMA, beta=DEFAULT_BETA, epsilon=DEFAULT_RMSPROP_EPS,
               lr_theta=None,
               use_pcd=False, n_pcd_chains=500,
               eval_every=10, verbose=True):
@@ -154,9 +162,9 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
         """
         N           = X_train.shape[0]
         current_lr  = lr
-        lr_theta    = lr_theta or lr * 0.1
+        lr_theta    = lr_theta or lr * LR_PARAM_MULTIPLIER
 
-        data_mean = X_train.mean(0).clamp(min=1e-8)
+        data_mean = X_train.mean(0).clamp(min=LOG_PROB_EPS)
         self.a    = torch.log(data_mean)
 
         sW = torch.zeros_like(self.W)
@@ -238,7 +246,7 @@ class NB_RBM(BernoulliHiddenMonitor, BaseRBM):
                     g_theta = self.log_theta.grad.nan_to_num(nan=0.0).clone()
                     s_theta = beta * s_theta + (1 - beta) * g_theta.pow(2)
                     self.log_theta -= lr_theta * g_theta / (s_theta + epsilon).sqrt()
-                    self.log_theta.clamp_(-10.0, 10.0)
+                    self.log_theta.clamp_(LOG_PARAM_CLAMP_MIN, LOG_PARAM_CLAMP_MAX)
                     self.log_theta.grad.zero_()
                 self.log_theta.requires_grad_(False)
 
@@ -302,7 +310,7 @@ class NB_ReLU_RBM(ReLUHiddenMonitor, NB_RBM):
         return V @ self.W + self.b
 
     def _sample_hidden(self, pre_act):
-        return F.relu(pre_act + torch.randn_like(pre_act)).clamp(max=5.0)
+        return F.relu(pre_act + torch.randn_like(pre_act)).clamp(max=RELU_HIDDEN_CLAMP_MAX)
 
     def _sample_bernoulli(self, prob):
         """Overridden: rectified Gaussian sampling in place of Bernoulli."""
@@ -310,12 +318,12 @@ class NB_ReLU_RBM(ReLUHiddenMonitor, NB_RBM):
 
     def hidden_probs(self, V):
         """Approximate E[h|v] = clamp(relu(pre_activation), 0, 5)."""
-        return F.relu(self._ph_given_v(V)).clamp(max=5.0)
+        return F.relu(self._ph_given_v(V)).clamp(max=RELU_HIDDEN_CLAMP_MAX)
 
     def _compute_hidden_stats(self, X_train):
         with torch.no_grad():
             pre_act = self._ph_given_v(X_train)
-        return {"h_mean":     F.relu(pre_act).clamp(max=5.0).mean().item(),
+        return {"h_mean":     F.relu(pre_act).clamp(max=RELU_HIDDEN_CLAMP_MAX).mean().item(),
                 "h_sparsity": (pre_act < 0).float().mean().item()}
 
 

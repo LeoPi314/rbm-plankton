@@ -10,6 +10,14 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
 from ._hidden_monitors import BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
+from ._constants import (
+    THETA_CLAMP_MIN, LOG_PROB_EPS, ETA_CLAMP_MAX,
+    LOG_PARAM_CLAMP_MIN, LOG_PARAM_CLAMP_MAX,
+    RELU_HIDDEN_CLAMP_MAX, LR_PARAM_MULTIPLIER,
+    DEFAULT_LR_DECAY, DEFAULT_GAMMA,
+    DEFAULT_BATCH_I, DEFAULT_BATCH_F, DEFAULT_N_BATCHES,
+    DEFAULT_BETA, DEFAULT_RMSPROP_EPS,
+)
 
 
 class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
@@ -54,7 +62,7 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
 
     def _mu(self, H):
         """NB mean: mu_i = exp(n_i), clamped to prevent float32 overflow."""
-        return torch.exp(self._eta(H).clamp(max=10.0))
+        return torch.exp(self._eta(H).clamp(max=ETA_CLAMP_MAX))
 
     def _pi(self):
         """Zero-inflation probability per taxon."""
@@ -75,12 +83,12 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
           otherwise v ~ NB(mu, theta) via Gamma-Poisson mixture
         """
         pi = self._pi().detach()
-        theta = self.log_theta.detach().exp().clamp(min=1e-4)
+        theta = self.log_theta.detach().exp().clamp(min=THETA_CLAMP_MIN)
 
         z = (torch.rand_like(mu) < pi.unsqueeze(0).expand_as(mu)).float()
 
         concentration = theta.unsqueeze(0).expand_as(mu)
-        rate = theta.unsqueeze(0) / mu.clamp(min=1e-8)
+        rate = theta.unsqueeze(0) / mu.clamp(min=LOG_PROB_EPS)
         g = torch.distributions.Gamma(concentration, rate).sample()
         nb_samples = torch.poisson(g).float()
 
@@ -94,8 +102,8 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
         Shape: (batch, D) -> scalar (mean over batch and taxa)
         """
         pi = self._pi()
-        theta = self.log_theta.exp().clamp(min=1e-4)
-        eps = 1e-8
+        theta = self.log_theta.exp().clamp(min=THETA_CLAMP_MIN)
+        eps = LOG_PROB_EPS
 
         log_nb_zero = theta * torch.log(theta / (theta + mu + eps))
 
@@ -127,8 +135,8 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
         """
         if pi is None:
             pi = self._pi().detach()
-        theta = self.log_theta.detach().exp().clamp(min=1e-4)
-        eps = 1e-8
+        theta = self.log_theta.detach().exp().clamp(min=THETA_CLAMP_MIN)
+        eps = LOG_PROB_EPS
 
         nb_res = theta * (V - mu) / (mu + theta + eps)
         log_f = theta * torch.log(theta / (theta + mu + eps))
@@ -162,9 +170,9 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
         return -self._zinb_log_prob(V, mu).item()
 
     def train(self, X_train, X_val=None,
-              epochs=500, lr=0.01, lr_decay=0.998,
-              cd_steps=1, batch_i=10, batch_f=256, n_batches=20,
-              gamma=1e-4, beta=0.9, epsilon=1e-4,
+              epochs=500, lr=0.01, lr_decay=DEFAULT_LR_DECAY,
+              cd_steps=1, batch_i=DEFAULT_BATCH_I, batch_f=DEFAULT_BATCH_F, n_batches=DEFAULT_N_BATCHES,
+              gamma=DEFAULT_GAMMA, beta=DEFAULT_BETA, epsilon=DEFAULT_RMSPROP_EPS,
               lr_theta=None, lr_pi=None,
               use_pcd=False, n_pcd_chains=500,
               eval_every=10, verbose=True):
@@ -184,10 +192,10 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
         """
         N           = X_train.shape[0]
         current_lr  = lr
-        lr_theta    = lr_theta or lr * 0.1
-        lr_pi       = lr_pi or lr * 0.1
+        lr_theta    = lr_theta or lr * LR_PARAM_MULTIPLIER
+        lr_pi       = lr_pi or lr * LR_PARAM_MULTIPLIER
 
-        data_mean = X_train.mean(0).clamp(min=1e-8)
+        data_mean = X_train.mean(0).clamp(min=LOG_PROB_EPS)
         self.a    = torch.log(data_mean)
 
         sW = torch.zeros_like(self.W)
@@ -276,8 +284,8 @@ class ZINB_RBM(BernoulliHiddenMonitor, BaseRBM):
                     s_pi = beta * s_pi + (1 - beta) * g_pi.pow(2)
                     self.log_theta -= lr_theta * g_theta / (s_theta + epsilon).sqrt()
                     self.logit_pi -= lr_pi * g_pi / (s_pi + epsilon).sqrt()
-                    self.log_theta.clamp_(-10.0, 10.0)
-                    self.logit_pi.clamp_(-10.0, 10.0)
+                    self.log_theta.clamp_(LOG_PARAM_CLAMP_MIN, LOG_PARAM_CLAMP_MAX)
+                    self.logit_pi.clamp_(LOG_PARAM_CLAMP_MIN, LOG_PARAM_CLAMP_MAX)
                     self.log_theta.grad.zero_()
                     self.logit_pi.grad.zero_()
                 self.log_theta.requires_grad_(False)
@@ -339,10 +347,10 @@ class ZINB_ReLU_RBM(ReLUHiddenMonitor, ZINB_RBM):
     """
 
     def _ph_given_v(self, V):
-        return F.relu(V @ self.W + self.b).clamp(max=5.0)
+        return F.relu(V @ self.W + self.b).clamp(max=RELU_HIDDEN_CLAMP_MAX)
 
     def _sample_hidden(self, mean):
-        return F.relu(mean + torch.randn_like(mean)).clamp(max=5.0)
+        return F.relu(mean + torch.randn_like(mean)).clamp(max=RELU_HIDDEN_CLAMP_MAX)
 
     def _sample_bernoulli(self, prob):
         """Overridden: rectified Gaussian sampling in place of Bernoulli."""

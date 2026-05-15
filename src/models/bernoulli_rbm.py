@@ -8,6 +8,12 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from .base_rbm import BaseRBM
+from ._constants import (
+    PROB_CLAMP_MIN,
+    DEFAULT_LR_DECAY, DEFAULT_GAMMA,
+    DEFAULT_BATCH_I, DEFAULT_BATCH_F, DEFAULT_N_BATCHES,
+    DEFAULT_BETA, DEFAULT_RMSPROP_EPS,
+)
 
 
 class BernoulliRBM(BaseRBM):
@@ -56,15 +62,15 @@ class BernoulliRBM(BaseRBM):
         return F.binary_cross_entropy(torch.sigmoid(-delta_F), V).item()
 
     def train(self, X_train, X_val=None,
-              epochs=500, lr=0.01, lr_decay=0.998,
-              cd_steps=1, batch_i=10, batch_f=256, n_batches=20,
-              gamma=1e-4, beta=0.9, epsilon=1e-4,
+              epochs=500, lr=0.01, lr_decay=DEFAULT_LR_DECAY,
+              cd_steps=1, batch_i=DEFAULT_BATCH_I, batch_f=DEFAULT_BATCH_F, n_batches=DEFAULT_N_BATCHES,
+              gamma=DEFAULT_GAMMA, beta=DEFAULT_BETA, epsilon=DEFAULT_RMSPROP_EPS,
               eval_every=10, verbose=True):
 
         N          = X_train.shape[0]
         current_lr = lr
 
-        xmean  = X_train.mean(0).clamp(1e-4, 1 - 1e-4)
+        xmean  = X_train.mean(0).clamp(PROB_CLAMP_MIN, 1 - PROB_CLAMP_MIN)
         self.a = torch.log(xmean / (1 - xmean))
 
         sW = torch.zeros_like(self.W)

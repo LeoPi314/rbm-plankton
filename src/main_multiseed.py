@@ -17,6 +17,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+from models._constants import (
+    DEFAULT_LR_DECAY    as LR_DECAY,
+    DEFAULT_GAMMA       as GAMMA,
+    DEFAULT_BATCH_I     as BATCH_I,
+    DEFAULT_BATCH_F     as BATCH_F,
+    DEFAULT_N_BATCHES   as N_BATCHES,
+    DEFAULT_BETA        as BETA,
+    DEFAULT_RMSPROP_EPS as EPSILON,
+)
+
 # -- Sweep configuration -------------------------------------------------------
 
 N_SEEDS     = 10
@@ -36,18 +46,12 @@ L_VALUES = {
 # Fixed hyperparameters
 EPOCHS         = 1000
 LR             = 0.01
-LR_DECAY       = 0.998
 CD_STEPS       = 1
-N_BATCHES      = 20
-BATCH_I        = 10
-BATCH_F        = 256
-GAMMA          = 1e-4
-BETA           = 0.9
-EPSILON        = 1e-4
 VAL_FRAC       = 0.15
 SHUFFLE_SPLIT  = True  # True = random split, False = chronological
 COUNT_SCALE    = 1000
 THETA_INIT_LOG = 0.0
+EVAL_EVERY     = 10
 
 # PCD settings (NB/ZINB families only)
 USE_PCD      = True
@@ -89,8 +93,8 @@ def train_one(job: tuple) -> str:
                 threshold = "median" if "median" in family else "zero"
                 X_train, X_val, dates_train, dates_val, taxa_cols, _, thresholds = \
                     load_and_binarise(str(DATA_PATH), binarize=threshold,
-                                      val_frac=VAL_FRAC, device=device,
-                                      **shuffle_kw)
+                                      scale=COUNT_SCALE, val_frac=VAL_FRAC,
+                                      device=device, **shuffle_kw)
                 rbm = BernoulliRBM(n_visible=len(taxa_cols), n_hidden=l_val,
                                    device=device)
             elif family == "nb":
@@ -167,7 +171,7 @@ def train_one(job: tuple) -> str:
                 epochs=EPOCHS, lr=LR, lr_decay=LR_DECAY,
                 cd_steps=CD_STEPS, batch_i=BATCH_I, batch_f=BATCH_F,
                 n_batches=N_BATCHES, gamma=GAMMA, beta=BETA, epsilon=EPSILON,
-                eval_every=10, verbose=False,
+                eval_every=EVAL_EVERY, verbose=False,
                 **pcd_kwargs,
             )
 
