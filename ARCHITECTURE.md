@@ -22,14 +22,16 @@
 
 ## Preprocessing
 
-Two paths, selected by `VISIBLE_MODEL` in `config.py`.
+Two paths, selected by the `family` string in `main_multiseed.py`.
+Both apply `COUNT_SCALE=1000` (organisms/μL → organisms/mL) as a shared first step for numerical stability (see LOG-024).
 
 **Bernoulli path** (`load_and_binarise`):
 ```
-raw CSV  →  drop all-zero rows  →  drop NaN rows  →  binarise v > per-taxon median  →  split
+raw CSV  →  drop all-zero rows  →  drop NaN rows  →  multiply by COUNT_SCALE=1000  →  binarise v > per-taxon median  →  split
 ```
+Binarisation is rank-invariant under positive scaling; the stored thresholds are in organisms/mL.
 
-**NB path** (`load_raw_counts`):
+**NB / ZINB path** (`load_raw_counts`):
 ```
 raw CSV  →  drop all-zero rows  →  drop NaN rows  →  multiply by COUNT_SCALE=1000  →  split
 ```
@@ -107,7 +109,7 @@ Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 | Monitor          | Reconstruction MSE · NLL · θ_mean · π_mean · sat_lo/sat_hi/sat_mid |
  | L1 scope         | W only (a is log-mean baseline, same rationale as NB-RBM; see LOG-009) |
  | log_θ clamp      | [−10, 10] after each update                                    |
- | logit_pi clamp   | [−5, 5] after each update                                      |
+ | logit_pi clamp   | [−10, 10] after each update                                    |
  | Negative phase   | PCD-1 (same as NB-RBM)                                         |
 
 ### ZINB-ReLU-RBM — ZINB visible, ReLU hidden
@@ -153,6 +155,8 @@ Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 
 **NLL**: negative NB log-likelihood = −mean_{n,i} log NB(v_i; μ_i, θ_i). Lower is better.
 
+> **Known issue — NLL scale-dependence.** The `lgamma(V+1)` term in the NB log-likelihood grows as `V·log(V)`, so NLL values depend on COUNT_SCALE even though COUNT_SCALE contributes zero to all gradients. Stored `val_nll` values are larger than the true deviance NLL by a fixed additive constant `lgamma(X_val+1).mean()` that can be computed from the data. NLL values are internally consistent (all runs use COUNT_SCALE=1000) and valid for model selection within the NB family. Cross-family comparison with PLL (which is scale-free) is not meaningful on absolute values. A full treatment is in `doc/nll_count_scale_issue.md`.
+
 ---
 
 ## Source layout
@@ -168,7 +172,8 @@ src/
   nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/
   plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from training_runs/ → figures/training_runs/
     models/
-      __init__.py           exports: BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM
+      __init__.py           exports: BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM, ZINBSigmoidRBM, ZINBSoftmaxRBM
+      _constants.py         all shared numeric constants with documented rationale (stability guards, training defaults, monitoring thresholds)
       io.py                 file I/O: training data loaders + results navigation
                             (load_and_binarise, load_raw_counts, best_seed_dir, METRIC_COL)
       utils.py              shared utilities: get_device, save_weights, load_weights
@@ -176,7 +181,7 @@ src/
       base_rbm.py           shared RBM interface and initialisation
       bernoulli_rbm.py      BernoulliRBM: train (CD-1), pll, hidden_probs, reconstruct
       nb_rbm.py             NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM: train (PCD-1), nll, hidden_probs, reconstruct, θ update
-      zinb_rbm.py           ZINB_RBM, ZINB_ReLU_RBM: train (PCD-1), nll, hidden_probs, reconstruct, θ + π update
+      zinb_rbm.py           ZINB_RBM, ZINB_ReLU_RBM, ZINBSigmoidRBM, ZINBSoftmaxRBM: train (PCD-1), nll, hidden_probs, reconstruct, θ + π update
       _hidden_monitors.py   mixins: BernoulliHiddenMonitor, ReLUHiddenMonitor, SigmoidHiddenMonitor, SoftmaxHiddenMonitor
 
 training_runs/{family}_L{n}/seed_{k}/   training artifacts (canonical: multiseed PCD runs)

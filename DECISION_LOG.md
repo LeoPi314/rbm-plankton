@@ -337,6 +337,30 @@ The sampling bug found during this investigation: the old `_ph_given_v` applied 
 
 ---
 
+## LOG-023 · All numeric constants centralised in `_constants.py`
+
+**Context:** Numeric literals were scattered across `nb_rbm.py`, `zinb_rbm.py`, `bernoulli_rbm.py`, `base_rbm.py`, `_hidden_monitors.py`, and `main_multiseed.py` as inline values with no documented rationale. Many appeared multiple times in different roles: `1e-4` appeared in four distinct roles (theta clamp, probability clamp, L1 strength, RMSprop ε); `1e-8` appeared in six places; the seven training defaults (`lr_decay`, `gamma`, `batch_i`, `batch_f`, `n_batches`, `beta`, `epsilon`) were triplicated across all three model `train()` signatures.
+
+**Decision:** Extract all non-trivial numeric literals into `src/models/_constants.py` with a documented explanation for each value. Training defaults are imported by all three model classes and `main_multiseed.py` via aliased names. `EVAL_EVERY` is surfaced as a top-level setting in `main_multiseed.py`.
+
+**Rationale:** A change to any stability parameter required editing multiple files by hand with no guarantee of consistency. The audit also revealed a pre-existing documentation error: ARCHITECTURE.md stated `logit_pi clamp [−5, 5]` while the code had always been `[−10, 10]`; the named constant `LOG_PARAM_CLAMP_MIN/MAX` made the discrepancy immediately visible and correctable.
+
+**Consequences:** `_constants.py` is the single source of truth for all numerical stability parameters, training defaults, and monitoring thresholds. Saturation thresholds in `_hidden_monitors.py` and `visualization.py` are both sourced from `BERNOULLI_SAT_LO/HI`, ensuring monitoring and plotting criteria stay in sync.
+
+---
+
+## LOG-024 · COUNT_SCALE applied uniformly to both preprocessing paths
+
+**Context:** `COUNT_SCALE=1000` was applied only inside `load_raw_counts` (NB/ZINB path). `load_and_binarise` (Bernoulli path) operated on raw organisms/μL. This framed COUNT_SCALE as an NB-specific model choice rather than a dataset-level preprocessing decision, and made the NB path look arbitrary in isolation.
+
+**Decision:** Add `scale=COUNT_SCALE` parameter to `load_and_binarise`, applied before binarisation. `main_multiseed.py` passes `scale=COUNT_SCALE` to both loaders. All preprocessing paths now share the same unit shift (organisms/μL → organisms/mL).
+
+**Rationale:** Binarisation is rank-invariant under positive scaling — `(v > median(v)) ≡ (1000v > median(1000v))` — so the binary model input is identical at any positive scale. The only observable effect is that stored thresholds are now in organisms/mL across all families, consistent with the NB path. Applying COUNT_SCALE uniformly removes the implicit assumption that it is distribution-specific and frames it as a global numerical stability decision (sub-unit floats → approximate integer range), which is the correct justification.
+
+**Consequences:** Stored thresholds for Bernoulli models are in organisms/mL. 18 taxa have zero median — their threshold remains 0 regardless of scale. The binary output of `load_and_binarise` is bit-identical to the pre-change behaviour.
+
+---
+
 ## LOG-022 · NBSoftmaxRBM: softmax hidden units collapse to near-deterministic assignments
 
 **Context:** `NBSoftmaxRBM` replaces Bernoulli hidden units with softmax (Σ_j h_j = 1, 0 ≤ h_j ≤ 1), sampled as one-hot from multinomial. Softmax is bounded → PCD-safe. 5-seed test L=5 shuffled, 200 epochs.

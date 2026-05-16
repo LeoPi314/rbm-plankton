@@ -46,12 +46,15 @@ rbm-plankton/
 │   ├── hidden_mean_activation.py # Hidden analysis — mean activation per unit
 │   ├── hidden_cross_model.py     # Hidden analysis — NB vs BB cross-model comparison
 │   └── models/
+│       ├── _constants.py        # All shared numeric constants with documented rationale
 │       ├── io.py                # File I/O: data loaders + results navigation
 │       ├── utils.py             # Shared utilities: device, save/load weights
 │       ├── visualization.py     # All plotting functions, organised by pipeline
 │       ├── base_rbm.py          # Shared RBM interface and initialisation
 │       ├── bernoulli_rbm.py     # BB-RBM: CD-1, pll, hidden_probs
-│       └── nb_rbm.py            # NBB-RBM: PCD-1, nll, hidden_probs, θ update
+│       ├── nb_rbm.py            # NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM
+│       ├── zinb_rbm.py          # ZINB_RBM, ZINB_ReLU_RBM, ZINBSigmoidRBM, ZINBSoftmaxRBM
+│       └── _hidden_monitors.py  # Mixins: Bernoulli/ReLU/Sigmoid/Softmax hidden monitors
 │
 ├── training_runs/               # Model training artifacts (weights, CSVs, logs)
 │   │   └── {family}_L{n}/seed_{k}/
@@ -111,11 +114,18 @@ runs automatically. Results go to `training_runs/{family}_L{n}/seed_{k}/`.
 
 **Model families:**
 
-| Family             | Visible units                | Training |
-| ------------------ | ---------------------------- | -------- |
-| `nb`               | Negative-Binomial            | PCD-1    |
-| `bernoulli_median` | Bernoulli (median threshold) | CD-1     |
-| `bernoulli_zero`   | Bernoulli (zero threshold)   | CD-1     |
+| Family             | Visible | Hidden   | Training | Notes                        |
+| ------------------ | ------- | -------- | -------- | ---------------------------- |
+| `nb`               | NB      | Bernoulli | PCD-1   | Canonical NB baseline        |
+| `zinb`             | ZINB    | Bernoulli | PCD-1   |                              |
+| `nb_sigmoid`       | NB      | Sigmoid  | PCD-1    | Recommended — best NLL (LOG-021) |
+| `nb_softmax`       | NB      | Softmax  | PCD-1    | Abandoned — collapses (LOG-022) |
+| `zinb_sigmoid`     | ZINB    | Sigmoid  | PCD-1    |                              |
+| `zinb_softmax`     | ZINB    | Softmax  | PCD-1    |                              |
+| `bernoulli_median` | Bernoulli (median threshold) | Bernoulli | CD-1 |              |
+| `bernoulli_zero`   | Bernoulli (zero threshold)   | Bernoulli | CD-1 | Near-trivial (LOG-005) |
+
+All families apply `COUNT_SCALE=1000` (organisms/μL → organisms/mL) as a shared preprocessing step before model-specific transformations (LOG-024).
 
 ### Analysis pipelines
 
