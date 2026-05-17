@@ -133,8 +133,8 @@ def process_training_run(run_dir: Path, figures_dir: Path):
 
 def main():
     base_dir = Path(__file__).parent.parent
-    training_runs_dir = base_dir / "training_runs"
-    figures_dir = base_dir / "figures" / "training_runs"
+    training_runs_dir = base_dir / "training_runs_v3"
+    figures_dir = base_dir / "figures" / "training_runs_v3"
 
     figures_dir.mkdir(parents=True, exist_ok=True)
 

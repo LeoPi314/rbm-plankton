@@ -38,3 +38,8 @@ Ready to dive into the analysis — want to start with the NLL/MSE comparison ac
   - bernoulli_zero confirmed trivial
 
   If the paper confirms a real ecological event, the anomaly item closes with no code changes, and the study is done.
+
+
+
+
+

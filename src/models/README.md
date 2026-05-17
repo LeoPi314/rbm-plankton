@@ -1,13 +1,14 @@
-# models/ — RBM family
+# models/ - RBM family
 
 ## Files
 
 | File | Contents |
 |------|----------|
-| `base_rbm.py` | `BaseRBM` — shared init (`W`, `a`, `b`), `reconstruction_mse()` |
-| `bernoulli_rbm.py` | `BernoulliRBM` — Bernoulli visible + Bernoulli hidden (via CD) |
-| `nb_rbm.py` | `NB_RBM`, `NB_ReLU_RBM`, `NBSigmoidRBM`, `NBSoftmaxRBM` — NB visible family |
-| `zinb_rbm.py` | `ZINB_RBM`, `ZINB_ReLU_RBM` — ZINB visible family |
+| `base_rbm.py` | `BaseRBM` - shared init (`W`, `a`, `b`), `reconstruction_mse()` |
+| `bernoulli_rbm.py` | `BernoulliRBM` - Bernoulli visible + Bernoulli hidden (via CD) |
+| `_constants.py` | numeric constants for all RBM model classes |
+| `nb_rbm.py` | `NB_RBM`, `NB_ReLU_RBM`, `NBSigmoidRBM`, `NBSoftmaxRBM` - NB visible family |
+| `zinb_rbm.py` | `ZINB_RBM`, `ZINB_ReLU_RBM` - ZINB visible family |
 | `_hidden_monitors.py` | Mixins: `BernoulliHiddenMonitor`, `ReLUHiddenMonitor`, `SigmoidHiddenMonitor`, `SoftmaxHiddenMonitor` |
 | `io.py` | Load/save model parameters, `METRIC_COL`, `best_seed_dir` |
 | `utils.py` | Helper functions (data prep, evaluation) |
