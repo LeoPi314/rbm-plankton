@@ -4,7 +4,7 @@ hidden_mean_activation.py - Mean hidden unit activation across L values.
 For each model family and L, computes the mean activation of each hidden unit
 over all samples. Identifies always-on (bias absorber) and always-off units.
 
-Output: results/hidden/mean_activation_{family}.png
+Output: results/02_model_analysis/mean_activation_{family}.png
 """
 
 import re
@@ -18,7 +18,7 @@ from models.io import best_seed_dir, METRIC_COL
 from models.visualization import ABSORBER_HI, ABSORBER_LO, mean_activations, plot_family
 
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "hidden"
+OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis"
 
 FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb", "zinb",
             "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax"]

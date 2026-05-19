@@ -13,8 +13,8 @@ Inference: clamped Gibbs (N_GIBBS steps) — observed positions stay fixed, miss
 positions are iteratively inferred from the model before the final scoring step.
 
 Output:
-  results/split_comparison/split_comparison.csv
-  results/split_comparison/split_comparison.png
+  results/tables/split_comparison.csv
+  results/03_evaluation/split_comparison.png
 """
 
 import sys
@@ -35,8 +35,8 @@ from models.nb_rbm import NB_RBM
 from models.bernoulli_rbm import BernoulliRBM
 
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "split_comparison"
-FIG_DIR     = Path(__file__).parent.parent / "results" / "split_comparison"
+OUT_DIR     = Path(__file__).parent.parent / "results" / "tables"
+FIG_DIR     = Path(__file__).parent.parent / "results" / "03_evaluation"
 N_SAMPLES   = 100
 N_GIBBS     = 5      # clamped Gibbs steps to infer missing positions before scoring
 COUNT_SCALE = 1000

@@ -5,8 +5,8 @@ Two figures per model family:
   1. Weight profiles: species x hidden unit heatmap (species sorted by dominant unit)
   2. Dominant state timeline: each date assigned to its argmax hidden unit, one row per L
 
-Output: results/hidden/weight_profiles_{family}.png
-        results/hidden/state_timeline_{family}.png
+Output: results/02_model_analysis/weight_profiles_{family}.png
+        results/02_model_analysis/state_timeline_{family}.png
 """
 
 import re
@@ -23,7 +23,7 @@ from models.visualization import (
 )
 
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "hidden"
+OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis"
 
 FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb", "zinb",
             "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax"]

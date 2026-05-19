@@ -9,11 +9,11 @@ Missingness patterns (after nonzero filter):
   p31: 31 NaN taxa   (43 rows, 52 observed)
   p54: 54 NaN taxa   (13 rows, 29 observed)
 
-Outputs (under results/nan_eval/):
-  nan_eval_rows.csv       per-row NLL, date, missingness pattern
-  nan_eval_summary.csv    per-(family, pattern) mean ± std
-  nan_eval_bars.png       grouped bar chart
-  nan_eval_timeseries.png p31 NLL time series
+Outputs:
+  results/tables/nan_eval_rows.csv       per-row NLL, date, missingness pattern
+  results/tables/nan_eval_summary.csv    per-(family, pattern) mean ± std
+  results/03_evaluation/nan_eval_bars.png       grouped bar chart
+  results/03_evaluation/nan_eval_timeseries.png p31 NLL time series
 """
 
 import sys
@@ -41,7 +41,8 @@ from models.bernoulli_rbm import BernoulliRBM
 @dataclass
 class EvalConfig:
     results_dir: Path   = Path(__file__).parent.parent / "training_runs"
-    out_root:    Path   = field(default_factory=lambda: Path(__file__).parent.parent / "results" / "nan_eval")
+    csv_root:    Path   = field(default_factory=lambda: Path(__file__).parent.parent / "results" / "tables")
+    fig_root:    Path   = field(default_factory=lambda: Path(__file__).parent.parent / "results" / "03_evaluation")
     n_samples:   int    = 100
     impute_base: int    = 5
     impute_per_nan: int = 3
@@ -50,11 +51,11 @@ class EvalConfig:
 
     @property
     def out_dir(self) -> Path:
-        return self.out_root
+        return self.csv_root
 
     @property
     def fig_dir(self) -> Path:
-        return self.out_root
+        return self.fig_root
 
 
 # -- Data --------------------------------------------------------------------

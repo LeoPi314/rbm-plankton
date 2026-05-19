@@ -2,10 +2,9 @@
 sweep_analysis.py - NLL/PLL vs L sweep analysis across all trained models.
 
 Reads training_runs/{family}_L{n}/seed_*/rbm_training_curves.csv and
-produces three figures in results/sweep/:
-  1. Final val metric vs L per model family (mean +/- std over seeds)
-  2. Val metric training curves overlaid per family
-  3. NB-specific: NLL and theta_mean trajectories per L
+produces figures in:
+  results/04_model_selection/ — final val metric vs L per model family
+  results/diagnostics/sweep{SUFFIX}/ — training curves, NB/ZINB diagnostics
 """
 
 import re
@@ -23,7 +22,8 @@ from models.visualization import (
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
 SHUFFLED = False  # set True to analyse shuffled-split runs
 SUFFIX = "_shuffled" if SHUFFLED else ""
-FIGURES_DIR = Path(__file__).parent.parent / "results" / f"sweep{SUFFIX}"
+DIAG_DIR = Path(__file__).parent.parent / "results" / "diagnostics" / f"sweep{SUFFIX}"
+METRIC_DIR = Path(__file__).parent.parent / "results" / "04_model_selection"
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, list[Path]]]:
@@ -76,7 +76,8 @@ def print_improvement_table(runs):
 
 
 def main():
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    DIAG_DIR.mkdir(parents=True, exist_ok=True)
+    METRIC_DIR.mkdir(parents=True, exist_ok=True)
     runs = discover_runs(RESULTS_DIR)
 
     print("Discovered runs:")
@@ -85,10 +86,10 @@ def main():
         print(f"  {family}: {details}")
 
     print_improvement_table(runs)
-    plot_final_metric(runs, FIGURES_DIR)
-    plot_sweep_curves(runs, FIGURES_DIR)
-    plot_nb_diagnostics(runs, FIGURES_DIR)
-    plot_zinb_diagnostics(runs, FIGURES_DIR)
+    plot_final_metric(runs, METRIC_DIR)
+    plot_sweep_curves(runs, DIAG_DIR)
+    plot_nb_diagnostics(runs, DIAG_DIR)
+    plot_zinb_diagnostics(runs, DIAG_DIR)
 
 
 if __name__ == "__main__":

@@ -8,14 +8,14 @@ Three analyses:
      counts distinct patterns (effective state usage out of 2^6=64).
   3. Seasonal profiles - mean activation per month per unit for both models.
 
-Outputs (CSVs) in results/hidden/:
+Outputs (CSVs) in results/tables/hidden/:
   cross_model_correlation.csv    - 6x6 Pearson matrix
   cross_model_matched_pairs.csv  - best NB<->BB match per unit
   nb_pattern_frequency.csv       - binary pattern counts
   seasonal_profiles_nb.csv       - mean activation by month
   seasonal_profiles_bb.csv       - mean activation by month
 
-Outputs (plots) in results/hidden/:
+Outputs (plots) in results/02_model_analysis/:
   cross_model_correlation.png
   nb_pattern_frequency.png
   seasonal_profiles.png
@@ -30,9 +30,10 @@ sys.path.insert(0, str(Path(__file__).parent))
 from models.io import best_seed_dir, METRIC_COL
 from models.visualization import plot_correlation, plot_pattern_frequency, plot_seasonal_profiles
 
-RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "hidden"
-TARGET_L    = 6
+RESULTS_DIR  = Path(__file__).parent.parent / "training_runs"
+CSV_DIR      = Path(__file__).parent.parent / "results" / "tables" / "hidden"
+FIG_DIR      = Path(__file__).parent.parent / "results" / "02_model_analysis"
+TARGET_L     = 6
 
 
 def load_activations(family: str) -> pd.DataFrame:
@@ -88,7 +89,8 @@ def seasonal_profile(act: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    CSV_DIR.mkdir(parents=True, exist_ok=True)
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
 
     nb = load_activations("nb")
     bb = load_activations("bernoulli_median")
@@ -98,34 +100,34 @@ def main():
 
     # 1. Correlation
     corr = compute_correlation(nb, bb)
-    corr.to_csv(OUT_DIR / "cross_model_correlation.csv")
-    print(f"Saved: {OUT_DIR}/cross_model_correlation.csv")
+    corr.to_csv(CSV_DIR / "cross_model_correlation.csv")
+    print(f"Saved: {CSV_DIR}/cross_model_correlation.csv")
 
     pairs = matched_pairs(corr)
-    pairs.to_csv(OUT_DIR / "cross_model_matched_pairs.csv", index=False)
-    print(f"Saved: {OUT_DIR}/cross_model_matched_pairs.csv")
+    pairs.to_csv(CSV_DIR / "cross_model_matched_pairs.csv", index=False)
+    print(f"Saved: {CSV_DIR}/cross_model_matched_pairs.csv")
     print("\nBest NB<->BB matches:")
     print(pairs.to_string(index=False))
 
-    plot_correlation(corr, OUT_DIR, target_l=TARGET_L)
+    plot_correlation(corr, FIG_DIR, target_l=TARGET_L)
 
     # 2. NB pattern frequency
     freq = nb_pattern_frequency(nb)
-    freq.to_csv(OUT_DIR / "nb_pattern_frequency.csv", index=False)
-    print(f"\nSaved: {OUT_DIR}/nb_pattern_frequency.csv")
+    freq.to_csv(CSV_DIR / "nb_pattern_frequency.csv", index=False)
+    print(f"\nSaved: {CSV_DIR}/nb_pattern_frequency.csv")
     print(f"Distinct NB patterns used: {len(freq)} / 64")
     print(freq.head(10).to_string(index=False))
 
-    plot_pattern_frequency(freq, OUT_DIR, target_l=TARGET_L)
+    plot_pattern_frequency(freq, FIG_DIR, target_l=TARGET_L)
 
     # 3. Seasonal profiles
     nb_prof = seasonal_profile(nb)
     bb_prof = seasonal_profile(bb)
-    nb_prof.to_csv(OUT_DIR / "seasonal_profiles_nb.csv")
-    bb_prof.to_csv(OUT_DIR / "seasonal_profiles_bb.csv")
+    nb_prof.to_csv(CSV_DIR / "seasonal_profiles_nb.csv")
+    bb_prof.to_csv(CSV_DIR / "seasonal_profiles_bb.csv")
     print(f"\nSaved seasonal profiles.")
 
-    plot_seasonal_profiles(nb_prof, bb_prof, OUT_DIR, target_l=TARGET_L)
+    plot_seasonal_profiles(nb_prof, bb_prof, FIG_DIR, target_l=TARGET_L)
 
 
 if __name__ == "__main__":
