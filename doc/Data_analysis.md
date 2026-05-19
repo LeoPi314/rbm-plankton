@@ -1,7 +1,7 @@
 # Data Analysis Report — Lake Greifen Plankton Dataset
 
 **Dataset**: `data/raw/TimeSeries_countsuL_clean.csv`  
-**Output figures**: `results/data_analysis/`  
+**Output figures**: `results/01_exploratory/`  
 **Reference**: Eyring et al. (2025), *Scientific Data* 12:653  
 **Analysis date**: 2026-04-26
 

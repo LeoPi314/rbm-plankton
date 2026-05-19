@@ -40,11 +40,13 @@ rbm-plankton/
 │
 ├── src/
 │   ├── main_multiseed.py         # Training pipeline — parallel N-seed runs
-│   ├── dataset_analysis.py       # EDA pipeline — dataset structure figures
-│   ├── sweep_analysis.py         # L-sweep pipeline — val metric vs L figures
-│   ├── hidden_coactivation.py    # Hidden analysis — weight profiles + state timelines
-│   ├── hidden_mean_activation.py # Hidden analysis — mean activation per unit
-│   ├── hidden_cross_model.py     # Hidden analysis — NB vs BB cross-model comparison
+│   ├── dataset_analysis.py       # EDA — dataset structure figures → results/01_exploratory/
+│   ├── sweep_analysis.py         # L-sweep analysis → results/04_model_selection/ + diagnostics/
+│   ├── hidden_coactivation.py    # Weight profiles + state timelines → results/02_model_analysis/
+│   ├── hidden_mean_activation.py # Mean activation per unit → results/02_model_analysis/
+│   ├── hidden_cross_model.py     # NB vs BB cross-model → results/02_model_analysis/ + tables/
+│   ├── nan_test_eval.py          # NaN imputation eval → results/03_evaluation/ + tables/
+│   ├── split_comparison.py       # Chrono vs shuffled split → results/03_evaluation/ + tables/
 │   └── models/
 │       ├── _constants.py        # All shared numeric constants with documented rationale
 │       ├── io.py                # File I/O: data loaders + results navigation
@@ -63,12 +65,13 @@ rbm-plankton/
 │   └── training_runs/           # Per-run figures (training curves, weight heatmaps, hidden activations)
 │
 ├── results/
-│   ├── hidden/                  # Hidden activation analysis — CSVs + figures
-│   ├── nan_eval/                # NaN test set evaluation — CSVs + figures
-│   ├── split_comparison/        # Split strategy comparison — CSVs + figures
-│   ├── dataset_analysis/        # EDA figures
-│   ├── sweep/                   # L-sweep analysis figures
-│   └── sweep_shuffled/          # Shuffled-split L-sweep figures
+│   ├── README.md                # Index of all outputs
+│   ├── 01_exploratory/          # Dataset EDA figures
+│   ├── 02_model_analysis/       # Learned representation figures (weight profiles, states, etc.)
+│   ├── 03_evaluation/           # Model evaluation figures (NaN imputation, split comparison)
+│   ├── 04_model_selection/      # L-sweep final metrics
+│   ├── tables/                  # CSV supporting data
+│   └── diagnostics/             # Training curves from sweeps
 │
 ├── archive/                     # Superseded runs and scripts (gitignored)
 ├── requirements.txt
@@ -132,10 +135,10 @@ All families apply `COUNT_SCALE=1000` (organisms/μL → organisms/mL) as a shar
 Run from the project root after training:
 
 ```bash
-python src/sweep_analysis.py          # L-sweep figures → results/sweep/
-python src/hidden_coactivation.py     # Weight profiles + state timelines → results/hidden/
-python src/hidden_mean_activation.py  # Mean activation per unit → results/hidden/
-python src/hidden_cross_model.py      # NB vs BB-median comparison → results/hidden/
+python src/sweep_analysis.py          # L-sweep final metric → results/04_model_selection/, diagnostics → results/diagnostics/
+python src/hidden_coactivation.py     # Weight profiles + state timelines → results/02_model_analysis/
+python src/hidden_mean_activation.py  # Mean activation per unit → results/02_model_analysis/
+python src/hidden_cross_model.py      # NB vs BB-median comparison → results/02_model_analysis/ + results/tables/hidden/
 ```
 
 ---
@@ -147,7 +150,7 @@ python src/hidden_cross_model.py      # NB vs BB-median comparison → results/h
 | Dataset EDA                                       | Done                                      |
 | L-sweep (N=10 seeds, L∈{3,4,5,6,7}, all families) | Done — `training_runs/`                   |
 | L selection                                       | Done — **L=6** for all families (LOG-017) |
-| Hidden activation analysis                        | Done — `results/hidden/`                  |
+| Hidden activation analysis                        | Done — `results/02_model_analysis/`        |
 | Cross-model comparison (NB vs BB-median)          | Done                                      |
 | NaN test set evaluation                           | **In progress**                           |
 

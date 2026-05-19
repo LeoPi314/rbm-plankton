@@ -161,7 +161,7 @@
 
 **Decision:** Run N=10 independent seeds per (family, L) combination via `main_multiseed.py`. L selection criterion: improvement from L→L+1 must exceed the within-L standard deviation across seeds.
 
-**Rationale:** The data split is chronological and deterministic — every seed sees the identical train/val partition. The only variance across seeds is weight initialisation and batch/CD sampling order, which is exactly what should be measured. The 5070 Ti supports 10 parallel training processes simultaneously (models are small: 83×L weights). Results stored in `results/multiseed/{family}_L{n}/seed_{k}/`.
+**Rationale:** The data split is chronological and deterministic — every seed sees the identical train/val partition. The only variance across seeds is weight initialisation and batch/CD sampling order, which is exactly what should be measured. The 5070 Ti supports 10 parallel training processes simultaneously (models are small: 83×L weights). Results stored in `training_runs/{family}_L{n}/seed_{k}/`.
 
 **Consequences:** L selection becomes statistically grounded. `sweep_analysis.py` to be extended to read multiseed results and report mean ± std improvement per L step.
 
@@ -169,13 +169,13 @@
 
 ## LOG-014 · Results directory partitioned by analysis stage
 
-**Context:** `results/data_analysis/` was accumulating outputs from both the initial data investigation and the L-sweep analysis — logically distinct stages mixed in one directory.
+**Context:** `results/01_exploratory/` (previously `results/data_analysis/`) was accumulating outputs from both the initial data investigation and the L-sweep analysis — logically distinct stages mixed in one directory.
 
-**Decision:** Partition results output into three directories: `results/data_analysis/` (initial data investigation, untouched), `results/sweep/` (sweep_analysis.py outputs), `results/hidden/` (hidden activation analysis scripts).
+**Decision:** Partition results output into numbered stage directories: `01_exploratory/` (EDA), `02_model_analysis/` (hidden state analysis), `03_evaluation/` (model evaluation), `04_model_selection/` (L-sweep metrics), plus `tables/` for CSV data and `diagnostics/` for training curves.
 
 **Rationale:** Mixed output makes it hard to identify which figures belong to which analysis stage and clutters the working directory. Separate directories make each stage independently reproducible and navigable.
 
-**Consequences:** `sweep_analysis.py` updated to write to `results/sweep/`. New hidden analysis scripts write to `results/hidden/`. Existing `results/data_analysis/` content unchanged.
+**Consequences:** All analysis scripts updated to write to the new paths. `.gitignore` whitelist updated accordingly.
 
 ---
 
@@ -199,7 +199,7 @@
 
 **Rationale:** PCD keeps the fantasy particles in the model's current distribution across batches. Over time the chains migrate between modes (bloom/non-bloom states) rather than being restarted in the data distribution each time. This removes the directional bias in the CD gradient that caused divergence. `n_pcd_chains=500 ≥ BATCH_F=256` ensures we never need to reuse a particle within the same batch draw. FPCD (fast weights) was considered but deferred: PCD-1 is the minimal intervention; fast weights add a hyperparameter pair and should only be introduced if PCD still shows significant divergence.
 
-**Consequences:** Multiseed sweep rerun under `results/multiseed_pcd/` for NB L∈{3,4,5,6,7}. Divergence rate at L≥5 expected to drop substantially. If divergence persists, next step is FPCD (add fast weight tensor with high LR + decay).
+**Consequences:** Multiseed sweep rerun under `training_runs/` for NB L∈{3,4,5,6,7}. Divergence rate at L≥5 expected to drop substantially. If divergence persists, next step is FPCD (add fast weight tensor with high LR + decay).
 
 ---
 

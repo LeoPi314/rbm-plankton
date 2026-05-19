@@ -164,12 +164,13 @@ Hidden monitoring is injected via mixins from `_hidden_monitors.py`.
 ```
 src/
   main_multiseed.py       training pipeline — parallel N-seed runs per (family, L)
-  dataset_analysis.py     EDA pipeline — figures → results/dataset_analysis/
-  sweep_analysis.py       L-sweep pipeline — figures → results/sweep/
-  hidden_coactivation.py  hidden analysis pipeline — weight profiles + state timelines → results/hidden/
-  hidden_mean_activation.py  hidden analysis pipeline — mean activation per unit → results/hidden/
-  hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison → results/hidden/
-  nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/nan_eval/
+  dataset_analysis.py     EDA pipeline — figures → results/01_exploratory/
+  sweep_analysis.py       L-sweep pipeline — final metric → results/04_model_selection/, diagnostics → results/diagnostics/
+  hidden_coactivation.py  hidden analysis pipeline — weight profiles + state timelines → results/02_model_analysis/
+  hidden_mean_activation.py  hidden analysis pipeline — mean activation per unit → results/02_model_analysis/
+  hidden_cross_model.py   hidden analysis pipeline — NB↔BB cross-model comparison → results/02_model_analysis/ + tables/hidden/
+  nan_test_eval.py        NaN test set evaluation — zero-impute clamped inference, NLL on observed taxa only → results/03_evaluation/ + tables/
+  split_comparison.py     chronological vs shuffled split comparison → results/03_evaluation/ + tables/
   plot_training_runs.py   post-hoc plotting — training curves, weight heatmaps, hidden activations from training_runs/ → figures/training_runs/
     models/
       __init__.py           exports: BernoulliRBM, NB_RBM, NB_ReLU_RBM, NBSigmoidRBM, NBSoftmaxRBM, ZINB_RBM, ZINB_ReLU_RBM, ZINBSigmoidRBM, ZINBSoftmaxRBM
@@ -194,10 +195,11 @@ training_runs_CD1/                      CD-1 training artifacts (separate sweep)
 figures/training_runs/                  training curves and weight heatmaps (plot_training_runs.py)
 
 results/
-  dataset_analysis/   EDA figures from dataset_analysis.py
-  sweep/              L-sweep analysis figures from sweep_analysis.py (chronological split)
-  sweep_shuffled/     L-sweep analysis figures from sweep_analysis.py (shuffled split)
-  hidden/             hidden activation analysis — CSVs + figures from hidden_*.py
-  nan_eval/           NaN test set evaluation — CSV scores + figures from nan_test_eval.py
-  split_comparison/   split strategy comparison — CSV + figures from split_comparison.py
+  README.md            index of all outputs
+  01_exploratory/      dataset EDA figures from dataset_analysis.py
+  02_model_analysis/   hidden state analysis figures from hidden_*.py (weight profiles, state timelines, activations, cross-model)
+  03_evaluation/       model evaluation figures from nan_test_eval.py + split_comparison.py
+  04_model_selection/  L-sweep final validation metrics from sweep_analysis.py
+  tables/              CSV supporting data (hidden activations, NaN evaluation, split comparison)
+  diagnostics/         training curves from L-sweeps (sweep/ + sweep_shuffled/)
 ```
