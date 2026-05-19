@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 RESULTS = Path(__file__).parent.parent / "training_runs"
 SUFFIX = "_shuffled"
-OUT = Path(__file__).parent.parent / "figures"
+OUT = Path(__file__).parent.parent / "results" / "diagnostics"
 
 for family, title, fname in [
     ("zinb_sigmoid", "ZINBSigmoidRBM — Train NLL (mean ± std, 10 seeds)", "zinb_sigmoid_train_nll_curves.png"),

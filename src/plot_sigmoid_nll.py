@@ -41,7 +41,7 @@ ax.legend(title="Hidden units")
 ax.grid(True, alpha=0.3)
 fig.tight_layout()
 
-out = Path(__file__).parent.parent / "figures" / "softmax_train_nll_curves.png"
+out = Path(__file__).parent.parent / "results" / "diagnostics" / "softmax_train_nll_curves.png"
 out.parent.mkdir(parents=True, exist_ok=True)
 fig.savefig(out, dpi=150)
 print(f"Saved: {out}")

@@ -176,6 +176,8 @@ FAMILY_META = {
     "zinb_relu":        dict(col="val_nll", label="Val NLL", better="lower"),
     "nb_sigmoid":       dict(col="val_nll", label="Val NLL", better="lower"),
     "nb_softmax":       dict(col="val_nll", label="Val NLL", better="lower"),
+    "zinb_sigmoid":     dict(col="val_nll", label="Val NLL", better="lower"),
+    "zinb_softmax":     dict(col="val_nll", label="Val NLL", better="lower"),
 }
 
 COLORS = {
@@ -187,6 +189,8 @@ COLORS = {
     "zinb_relu":        "#8c564b",
     "nb_sigmoid":       "#bcbd22",
     "nb_softmax":       "#17becf",
+    "zinb_sigmoid":     "#2ca02c",
+    "zinb_softmax":     "#e377c2",
 }
 
 

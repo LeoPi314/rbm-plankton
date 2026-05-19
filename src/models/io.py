@@ -118,6 +118,8 @@ METRIC_COL = {
     "nb_softmax":       "val_nll",
     "zinb":             "val_nll",
     "zinb_relu":        "val_nll",
+    "zinb_sigmoid":     "val_nll",
+    "zinb_softmax":     "val_nll",
     "bernoulli_median": "val_pll",
     "bernoulli_zero":   "val_pll",
 }

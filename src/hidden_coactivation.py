@@ -23,15 +23,18 @@ from models.visualization import (
 )
 
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis"
+SUFFIX = ""  # set to "_shuffled" for shuffled-split runs
+OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis" / ("shuffled" if SUFFIX else "")
 
 FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb", "zinb",
-            "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax"]
+            "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax",
+            "zinb_sigmoid", "zinb_softmax"]
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, dict[str, Path]]]:
     """Return {family: {L: {activations, weights}}} using the best seed per (family, L)."""
-    pattern = re.compile(r"^(.+)_L(\d+)$")
+    escaped = re.escape(SUFFIX)
+    pattern = re.compile(rf"^(.+)_L(\d+){escaped}$")
     runs: dict[str, dict[int, dict[str, Path]]] = {}
     for d in sorted(results_dir.iterdir()):
         if not d.is_dir():
@@ -70,7 +73,8 @@ def save_state_frequency(runs: dict, out_dir: Path):
                 rows.append({"family": family, "L": l_val, "unit": f"h{unit}",
                              "n_days": int(n), "fraction": round(n / total, 4)})
     df = pd.DataFrame(rows)
-    out = out_dir / "state_frequency.csv"
+    suffix = "_shuffled" if SUFFIX else ""
+    out = out_dir / f"state_frequency{suffix}.csv"
     df.to_csv(out, index=False)
     print(f"Saved: {out}")
 
@@ -88,7 +92,8 @@ def save_dominant_state_l6(runs: dict, out_dir: Path, target_l: int = 6):
         return
     df = pd.concat(frames, axis=1)
     df.index.name = "date"
-    out = out_dir / f"dominant_state_L{target_l}.csv"
+    suffix = "_shuffled" if SUFFIX else ""
+    out = out_dir / f"dominant_state_L{target_l}{suffix}.csv"
     df.to_csv(out)
     print(f"Saved: {out}")
 

@@ -18,14 +18,17 @@ from models.io import best_seed_dir, METRIC_COL
 from models.visualization import ABSORBER_HI, ABSORBER_LO, mean_activations, plot_family
 
 RESULTS_DIR = Path(__file__).parent.parent / "training_runs"
-OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis"
+SUFFIX = ""  # set to "_shuffled" for shuffled-split runs
+OUT_DIR     = Path(__file__).parent.parent / "results" / "02_model_analysis" / ("shuffled" if SUFFIX else "")
 
 FAMILIES = ["bernoulli_median", "bernoulli_zero", "nb", "zinb",
-            "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax"]
+            "nb_relu", "zinb_relu", "nb_sigmoid", "nb_softmax",
+            "zinb_sigmoid", "zinb_softmax"]
 
 
 def discover_runs(results_dir: Path) -> dict[str, dict[int, Path]]:
-    pattern = re.compile(r"^(.+)_L(\d+)$")
+    escaped = re.escape(SUFFIX)
+    pattern = re.compile(rf"^(.+)_L(\d+){escaped}$")
     runs: dict[str, dict[int, Path]] = {}
     for d in sorted(results_dir.iterdir()):
         if not d.is_dir():
@@ -47,6 +50,7 @@ def discover_runs(results_dir: Path) -> dict[str, dict[int, Path]]:
 
 
 def save_summary_csv(runs: dict, out_dir: Path):
+    suffix = "_shuffled" if SUFFIX else ""
     rows = []
     for family, family_runs in runs.items():
         for l_val, csv in family_runs.items():
@@ -59,7 +63,7 @@ def save_summary_csv(runs: dict, out_dir: Path):
                              "unit": unit, "mean_activation": round(v, 4),
                              "flag": flag})
     df = pd.DataFrame(rows)
-    out = out_dir / "mean_activation_summary.csv"
+    out = out_dir / f"mean_activation_summary{suffix}.csv"
     df.to_csv(out, index=False)
     print(f"Saved: {out}")
 

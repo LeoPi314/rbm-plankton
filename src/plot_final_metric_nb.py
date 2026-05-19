@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 RESULTS = Path(__file__).parent.parent / "training_runs"
 SUFFIX = "_shuffled"
-OUT = Path(__file__).parent.parent / "figures"
+OUT = Path(__file__).parent.parent / "results" / "04_model_selection"
 
 families = {
     "nb_sigmoid":   {"L": [4,5,6,7,8], "color": "#bcbd22", "marker": "o"},
@@ -19,7 +19,7 @@ families = {
     "zinb_softmax": {"L": [4,5,6,7,8], "color": "#e377c2", "marker": "v"},
 }
 
-fig, ax = plt.subplots(figsize=(7, 5))
+fig, ax = plt.subplots(figsize=(8, 5))
 
 for family, cfg in families.items():
     xs, means, stds = [], [], []

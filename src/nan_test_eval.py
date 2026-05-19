@@ -63,8 +63,8 @@ class EvalConfig:
 def load_nan_rows() -> tuple[pd.DataFrame, list[str]]:
     df = pd.read_csv(DATA_PATH, parse_dates=["date"]).sort_values("date").reset_index(drop=True)
     taxa = [c for c in df.columns if c != "date"]
-    df = df[df[taxa].fillna(0).sum(1) > 0]
-    df = df[df[taxa].isna().any(1)].copy().reset_index(drop=True)
+    df = df[df[taxa].fillna(0).sum(axis=1) > 0]
+    df = df[df[taxa].isna().any(axis=1)].copy().reset_index(drop=True)
     return df, taxa
 
 
