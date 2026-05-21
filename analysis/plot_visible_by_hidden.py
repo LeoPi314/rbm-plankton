@@ -94,8 +94,9 @@ def plot_scatter(species, probs_list, labels, out_path: Path, title: str):
         ax.scatter(
             xs,
             probs,
-            color=colors[i],
-            s=20,
+            facecolors=colors[i],
+            marker="o",
+            s=30,
             alpha=0.85,
             label=labels[i],
             edgecolors="black",
@@ -118,8 +119,13 @@ def plot_scatter(species, probs_list, labels, out_path: Path, title: str):
     plt.close(fig)
 
 
-def plot_per_hidden_rows(species, probs_list, labels, out_path: Path, title: str):
-    """Plot one subplot per hidden node (rows). Y values expected in [0,1]."""
+def plot_per_hidden_rows(species, probs_list, labels, out_path: Path, title: str, normalize: bool = True, log_y: bool = False, mode: str = "bernoulli"):
+    """Plot one subplot per hidden node (rows).
+
+    By default renormalize each hidden node to frequency [0,1]. Set `normalize=False`
+    to plot raw probabilities/means. Set `log_y=True` to use log scale (adds small
+    epsilon to avoid zeros).
+    """
     out_path.parent.mkdir(parents=True, exist_ok=True)
     D = len(species)
     L = len(probs_list)
@@ -133,71 +139,60 @@ def plot_per_hidden_rows(species, probs_list, labels, out_path: Path, title: str
     x = np.arange(D)
     for j, ax in enumerate(axes):
         probs = probs_list[j]
-        # renormalize to frequency [0,1]
-        s = probs.sum()
-        if s > 0:
-            freqs = probs / s
+        if normalize:
+            s = probs.sum()
+            vals = probs / s if s > 0 else np.zeros_like(probs)
+            ax.set_ylim(0.0, 1.0)
         else:
-            freqs = np.zeros_like(probs)
+            vals = probs
+            # set y-limits relative to data to avoid excessive white space
+            vmax = float(np.nanmax(vals)) if vals.size > 0 else 1.0
+            vmin = float(np.nanmin(vals)) if vals.size > 0 else 0.0
+            # expand a little for visibility
+            lower = min(0.0, vmin - 0.05 * max(1.0, abs(vmin)))
+            upper = max(vmax * 1.05, 1e-9)
+            ax.set_ylim(lower, upper)
 
-        ax.scatter(
-            x,
-            freqs,
-            color=colors[j],
-            s=20,
-            alpha=0.9,
-            edgecolors="black",
-            linewidths=0.35,
-        )
+        # force filled circle markers so edgecolors render reliably
+        ax.scatter(x, vals, color=colors[j], s=30, alpha=0.9, marker="o", edgecolors="black", linewidths=0.35, zorder=3)
         ax.set_ylabel(labels[j], fontsize=8)
-        ax.set_ylim(0.0, 1.0)
         ax.grid(True, axis="y", alpha=0.2)
+
+        if log_y:
+            # use smallest positive value as floor, not a linear ylim in log space
+            positive = vals[vals > 0]
+            floor = float(np.min(positive)) if positive.size > 0 else 1e-6
+            ceiling = float(np.max(vals)) if vals.size > 0 else floor * 10.0
+            lower = max(floor / 1.5, 1e-9)
+            upper = max(ceiling * 1.15, lower * 10.0)
+            ax.set_yscale("log")
+            ax.set_ylim(lower, upper)
+            ax.axhline(floor, color="0.4", linestyle="--", linewidth=0.8, alpha=0.7, zorder=2)
 
     axes[-1].set_xticks(x)
     axes[-1].set_xticklabels(species, rotation=90, fontsize=8)
     axes[-1].set_xlabel("Species")
+    # common ylabel describing what's plotted
+    if normalize:
+        ylab = "Frequency"
+    else:
+        if mode == "bernoulli":
+            ylab = "Probability"
+        elif mode == "zinb":
+            ylab = "Expected count"
+        else:
+            ylab = "Value"
+    if log_y:
+        ylab = f"{ylab} (log scale)"
+    fig.text(0.02, 0.5, ylab, va="center", rotation="vertical", fontsize=10)
+    # reduce left/right padding so first/last ticks sit closer to axes
     if D > 1:
-        axes[-1].set_xlim(-0.05, D - 1 + 0.05)
+        axes[-1].set_xlim(-0.5, D - 0.5)
     fig.suptitle(title)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.98))
+    fig.subplots_adjust(left=0.06, right=0.99, top=0.96, bottom=0.18)
     fig.savefig(out_path, dpi=250, bbox_inches="tight")
     plt.close(fig)
 
-
-def plot_per_hidden_rows(species, probs_list, labels, out_path: Path, title: str):
-    """Plot one subplot per hidden node (rows). Y values expected in [0,1]."""
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    D = len(species)
-    L = len(probs_list)
-    fig, axes = plt.subplots(L, 1, figsize=(max(10, 0.4 * D), 2.5 * L), sharex=True)
-    if L == 1:
-        axes = [axes]
-
-    cmap = matplotlib.colormaps["rainbow"]
-    colors = cmap(np.linspace(0, 1, L, endpoint=False))
-
-    x = np.arange(D)
-    for j, ax in enumerate(axes):
-        probs = probs_list[j]
-        # renormalize to frequency [0,1]
-        s = probs.sum()
-        if s > 0:
-            freqs = probs / s
-        else:
-            freqs = np.zeros_like(probs)
-
-        ax.scatter(x, freqs, color=colors[j], s=20, alpha=0.9)
-        ax.set_ylabel(labels[j], fontsize=8)
-        ax.set_ylim(0.0, 1.0)
-        ax.grid(True, axis="y", alpha=0.2)
-
-    axes[-1].set_xticks(x)
-    axes[-1].set_xticklabels(species, rotation=90, fontsize=8)
-    axes[-1].set_xlabel("Species")
-    fig.suptitle(title)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.98))
-    fig.savefig(out_path, dpi=250, bbox_inches="tight")
-    plt.close(fig)
 
 
 def main():
@@ -209,6 +204,10 @@ def main():
                         help="Interpretation for visible units. Auto-detect if omitted.")
     parser.add_argument("--patterns-csv", type=Path, default=None,
                         help="Optional CSV with column 'pattern' containing binary strings for hidden patterns")
+    parser.add_argument("--no-normalize", action="store_true",
+                        help="Do not renormalize per-hidden to frequency [0,1]; plot raw values")
+    parser.add_argument("--log-y", action="store_true",
+                        help="Use log scale for y-axis (avoid zeros automatically)")
     parser.add_argument("--title-prefix", default="RBM",
                         help="Title prefix for plots")
     args = parser.parse_args()
@@ -237,7 +236,8 @@ def main():
 
     plot_path = out_dir / f"visible_by_hidden_{mode}.png"
     # per-hidden-row plot (renormalizes each hidden node to frequency [0,1])
-    plot_per_hidden_rows(species, probs_list, labels, plot_path, f"{args.title_prefix} visible probs by hidden ({mode})")
+    plot_per_hidden_rows(species, probs_list, labels, plot_path, f"{args.title_prefix} visible probs by hidden ({mode})",
+                         normalize=(not args.no_normalize), log_y=args.log_y, mode=mode)
 
     # save raw CSV and normalized-frequency CSV
     df = pd.DataFrame({label: probs for label, probs in zip(labels, probs_list)}, index=species)
@@ -271,7 +271,8 @@ def main():
 
         plot_path2 = out_dir / f"visible_by_patterns_{mode}.png"
         plot_per_hidden_rows(species, probs_patterns, labels_pat, plot_path2,
-                     f"{args.title_prefix} visible by hidden patterns ({mode})")
+             f"{args.title_prefix} visible by hidden patterns ({mode})",
+             normalize=(not args.no_normalize), log_y=args.log_y, mode=mode)
 
         df2 = pd.DataFrame({label: probs for label, probs in zip(labels_pat, probs_patterns)}, index=species)
         csv_path2 = out_dir / f"visible_by_patterns_{mode}.csv"
